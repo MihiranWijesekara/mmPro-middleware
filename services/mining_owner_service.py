@@ -34,8 +34,32 @@ class MLOwnerService:
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
 
             issues = response.json().get("issues", [])
+#methana thmi hadann tiyenne token eke ena payload ekt anuwa
+            # Hardcoded NIC value
+            OwnerName="Pasindu Lakshan"
 
-            return issues, None  # Returning the list of issues and no error
+            # Filter the issues based on the hardcoded NIC
+            filtered_issues = [
+                issue for issue in issues if MLOwnerService.issue_belongs_to_nic(issue, OwnerName)
+            ]
+
+            return filtered_issues, None  # Returning filtered issues and no error
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def issue_belongs_to_nic(issue, nic):
+        """
+        Check if the issue belongs to the NIC.
+        This assumes that the NIC is stored in the custom fields list of the issue.
+        """
+        # Assuming NIC is stored in a custom field at index 0
+        custom_fields = issue.get('custom_fields', [])
+        
+        if custom_fields:
+            # Check if the NIC value matches in the custom field
+            nic_value = custom_fields[0].get('value')
+            if nic_value == nic:
+                return True
+        return False
