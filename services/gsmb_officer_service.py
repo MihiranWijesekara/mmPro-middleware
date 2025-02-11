@@ -9,7 +9,7 @@ class GsmbOfficerService:
     def get_mining_licenses():
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
-            API_KEY = os.getenv("REDMINE_API_KEY")
+            API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 
             if not REDMINE_URL or not API_KEY:
                 return None, "Redmine URL or API Key is missing"
