@@ -14,10 +14,10 @@ class MLOwnerService:
             if not REDMINE_URL or not API_KEY:
                 return None, "Redmine URL or API Key is missing"
 
-            # Define query parameters for project_id=31 and tracker_id=7
+            # Define query parameters for project_id=31 and tracker_id=8 (TPL)
             params = {
                 "project_id": 31,
-                "tracker_id": 7
+                "tracker_id": 8  # TPL tracker ID
             }
 
             headers = {
@@ -34,11 +34,11 @@ class MLOwnerService:
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
 
             issues = response.json().get("issues", [])
-#methana thmi hadann tiyenne token eke ena payload ekt anuwa
-            # Hardcoded NIC value
-            OwnerName="Pasindu Lakshan"
 
-            # Filter the issues based on the hardcoded NIC
+            # Hardcoded Owner Name (could be dynamically retrieved from a token in the future)
+            OwnerName = "Pasindu Lakshan" 
+
+            # Filter the issues based on the hardcoded OwnerName
             filtered_issues = [
                 issue for issue in issues if MLOwnerService.issue_belongs_to_nic(issue, OwnerName)
             ]
@@ -63,3 +63,33 @@ class MLOwnerService:
             if nic_value == nic:
                 return True
         return False
+
+    @staticmethod
+    def create_tpl(data):
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = os.getenv("REDMINE_API_KEY")
+
+            if not REDMINE_URL or not API_KEY:
+                return None, "Redmine URL or API Key is missing"
+
+            headers = {
+                "X-Redmine-API-Key": API_KEY,
+                "Content-Type": "application/json"
+            }
+
+            # Sending POST request to Redmine to create the issue
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",
+                json=data,
+                headers=headers
+            )
+
+            if response.status_code != 201:
+                return None, f"Failed to create issue: {response.status_code} - {response.text}"
+
+            issue = response.json().get("issue", {})
+            return issue, None  # Returning created issue and no error
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
