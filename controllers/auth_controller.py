@@ -3,6 +3,8 @@ from services.auth_service import AuthService
 
 auth_bp = Blueprint('auth_controller', __name__)
 
+CORS(app)
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
