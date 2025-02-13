@@ -35,11 +35,11 @@ class PoliceOfficerService:
 
             # Extract required TPL details
             tpl_data = {
-                "load number": tpl_license["id"],  # Load number
+                "loadNumber": tpl_license["id"],  # Load number
                 "capacity": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 15), None),
                 "destination": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 12), None),
-                "start_date": tpl_license.get("start_date"),
-                "end_date": tpl_license.get("due_date")
+                "start": tpl_license.get("start_date"),
+                "dueDate": tpl_license.get("due_date")
             }
 
             # Fetch all Mining Licenses (tracker_id = 7)
@@ -60,9 +60,9 @@ class PoliceOfficerService:
 
             # Extract required Mining License details
             mining_data = {
-                "license_number": mining_license["subject"],
-                "ml_license_expire_date": mining_license.get("due_date"),
-                "owner_name": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 2), None),
+                "licenseNumber": mining_license["subject"],
+                "expires": mining_license.get("due_date"),
+                "owner": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 2), None),
                 "location": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 11), None),
             }
 

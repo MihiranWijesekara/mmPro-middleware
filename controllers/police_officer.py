@@ -21,4 +21,4 @@ def get_tpl_licenses():
         else:
             return jsonify({"error": error}), 500
 
-    return jsonify({"tpl_licenses": issues})
+    return jsonify({"license_details": issues})
