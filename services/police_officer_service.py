@@ -25,9 +25,11 @@ class PoliceOfficerService:
 
             tpl_issues = tpl_response.json().get("issues", [])
 
+            lorry_number_lower = lorry_number.lower()
+
             # Find the TPL license that matches the given lorry number (cf_13)
             tpl_license = next((issue for issue in tpl_issues if any(
-                cf["id"] == 13 and cf["value"] == lorry_number for cf in issue.get("custom_fields", [])
+                cf["id"] == 13 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", [])
             )), None)
 
             if not tpl_license:

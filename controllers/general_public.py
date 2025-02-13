@@ -1,9 +1,11 @@
 from flask import Blueprint, jsonify, request
 from services.general_public_service import GeneralPublicService
+from middleware.auth_middleware import role_required
 
 general_public_bp = Blueprint('general_public', __name__)
 
 @general_public_bp.route('/validate-lorry-number', methods=['GET'])
+@role_required(['GeneralPublic'])
 def validate_lorry_number():
     lorry_number = request.args.get("lorry_number")  # Get lorry number from query params
 
@@ -19,3 +21,44 @@ def validate_lorry_number():
             return jsonify({"error": "Internal Server Error"}), 500  # Hide technical errors
 
     return jsonify({"valid": tpl_license_exists}), 200  # Return True if valid
+
+@general_public_bp.route('/send-verification', methods=['POST'])
+@role_required(['GeneralPublic'])
+def send_verification():
+    data = request.json
+    phone = data['phone']
+
+    success, result = GeneralPublicService.send_verification_code(phone)
+
+    if success:
+        return jsonify({'success': True, 'verification_id': result})
+    else:
+        return jsonify({'success': False, 'error': result}), 400
+
+# Route for verifying the code
+@general_public_bp.route('/verify-code', methods=['POST'])
+@role_required(['GeneralPublic'])
+def verify_code():
+    data = request.json
+    phone = data['phone']
+    code = data['code']
+
+    success, result = GeneralPublicService.verify_code(phone, code)
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': result}), 401
+
+# Route for creating a complaint
+@general_public_bp.route('/create-complaint', methods=['POST'])
+@role_required(['GeneralPublic'])
+def create_complaint():
+    data = request.json
+    
+    success, result = GeneralPublicService.create_complaint(data['phone'])
+
+    if success:
+        return jsonify({'success': True, 'complaint_id': result})
+    else:
+        return jsonify({'success': False, 'error': result}), 500
