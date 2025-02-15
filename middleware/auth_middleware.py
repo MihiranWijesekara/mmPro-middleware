@@ -11,8 +11,7 @@ def role_required(allowed_roles):
             if not token:
                 return jsonify({"message": "Token is missing"}), 403
 
-            try:
-            
+            try:      
                 token = token.split(" ")[1]    
                 payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
                 user_role = payload.get("role")
