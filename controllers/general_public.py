@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.general_public_service import GeneralPublicService
 from middleware.auth_middleware import role_required
+from utils.jwt_utils import JWTUtils
 
 general_public_bp = Blueprint('general_public', __name__)
 
@@ -62,3 +63,25 @@ def create_complaint():
         return jsonify({'success': True, 'complaint_id': result})
     else:
         return jsonify({'success': False, 'error': result}), 500
+    
+
+@general_public_bp.route('/get-api', methods=['GET'])
+@role_required(['GeneralPublic'])
+def get_api():
+    token = request.headers.get('Authorization')
+
+    if not token or not token.startswith('Bearer '):
+        return jsonify({'message': 'Authorization token is missing or malformed'}), 400
+
+    # Extract the token without the "Bearer " prefix
+    token = token[len('Bearer '):]
+
+    # Decode JWT and decrypt the API key
+    api_key = JWTUtils.decode_jwt_and_decrypt_api_key(token)
+
+    if 'message' in api_key:
+        # If there's an error message in the response, return the error
+        return jsonify({'error': api_key['message']}), 401  # Token error handling
+
+    # If no error, return the decrypted payload
+    return jsonify(api_key)
