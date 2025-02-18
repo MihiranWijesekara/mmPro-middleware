@@ -7,9 +7,9 @@ from twilio.base.exceptions import TwilioException
 
 load_dotenv()
 
-TWILIO_ACCOUNT_SID = 'ACa759a9d29d1d24aa02d64738deb44648'
-TWILIO_AUTH_TOKEN = '4cb3b1b8d96018cecca30311ec93b70d'  # Replace with your actual auth token
-VERIFY_SERVICE_SID = 'VAf1d2907542dd6d49d431e876a521f2fc'
+TWILIO_ACCOUNT_SID = 'AC33b7a3d09751c9bddd39a142ae3b0a3d'
+TWILIO_AUTH_TOKEN = 'cdec635e8c1040069cf6fc69ef91ec3a'  # Replace with your actual auth token
+VERIFY_SERVICE_SID = 'VA79d7740cc3365b67c375321cd1be4ff3'
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
