@@ -9,11 +9,12 @@ general_public_bp = Blueprint('general_public', __name__)
 @role_required(['GeneralPublic'])
 def validate_lorry_number():
     lorry_number = request.args.get("lorry_number")  # Get lorry number from query params
+    token = request.headers.get("Authorization")
 
     if not lorry_number:
         return jsonify({"error": "Lorry number is required"}), 400  # 400 Bad Request
 
-    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
+    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number,token)
 
     if error:
         if "No TPL with this lorry number" in error:
