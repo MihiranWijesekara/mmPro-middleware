@@ -1,11 +1,9 @@
-import jwt
-import requests
-import datetime
 from flask import Blueprint, request, jsonify
-from config import Config
 from services.auth_service import AuthService
+from utils.jwt_utils import JWTUtils
 
-auth_bp = Blueprint('auth', __name__)
+
+auth_bp = Blueprint('auth_controller', __name__)
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -16,16 +14,31 @@ def login():
     if not username or not password:
         return jsonify({'message': 'Username and password are required'}), 400
 
-    user_data, user_role_or_error = AuthService.authenticate_user(username, password)
+    user_data, user_role, api_key = AuthService.authenticate_user(username, password)
     
     if not user_data:
-        return jsonify({'message': user_role_or_error}), 401
+        return jsonify({'message': user_role}), 401
 
-    expiration_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    token = jwt.encode(
-        {'user_id': user_data['id'], 'role': user_role_or_error, 'exp': expiration_time},
-        Config.SECRET_KEY,
-        algorithm=Config.JWT_ALGORITHM
-    )
+    # Create a User object
+    
+    user_id=user_data.get('id'),
+    username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
 
-    return jsonify({'token': token, 'role': user_role_or_error})
+    # Create JWT token using the User's role, api_key, and user_id
+    jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+
+    return jsonify({'token': jwt_token, 'role': user_role, 'username':username})
+
+
+@auth_bp.route('/google-login', methods=['POST'])
+def auth_google():
+    token = request.json.get('token')
+    if not token:
+        return jsonify({"error": "Google token is required"}), 400
+    
+    user_id,user_data,user_role,api_key = AuthService.authenticate_google_token(token)
+    username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
+    # Create JWT token using the service
+    jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+
+    return jsonify({'token': jwt_token, 'role': user_role, 'username':username})

@@ -1,8 +1,10 @@
 from flask import Flask
 from controllers import auth_bp, mining_owner_bp, gsmb_officer_bp, police_officer_bp, general_public_bp
-import os
+from flask_cors import CORS
 
 app = Flask(__name__)
+
+CORS(app)
 
 # Load environment variables
 app.config.from_pyfile('.env')
