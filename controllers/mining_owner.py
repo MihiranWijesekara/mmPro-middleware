@@ -98,7 +98,7 @@ def view_tpls():
 @mining_owner_bp.route('/update-ml/<int:issue_id>', methods=['PUT'])
 @role_required(['MLOwner'])
 def update_ml(issue_id):
-  try:
+    try:
         # Check if the Authorization token is present in the request
         auth_header = request.headers.get('Authorization')
         if not auth_header:
@@ -143,7 +143,7 @@ def update_ml(issue_id):
 @mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
 @role_required(['MLOwner'])
 def mining_home():
-  try:
+    try:
         # Check if the Authorization token is present in the request
         auth_header = request.headers.get('Authorization')
         if not auth_header:
