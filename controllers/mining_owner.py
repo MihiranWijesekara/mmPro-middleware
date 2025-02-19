@@ -7,7 +7,7 @@ mining_owner_bp = Blueprint('mining_owner', __name__)
 
 # GET route for /mining-licenses (already exists)
 @mining_owner_bp.route('/mining-licenses', methods=['GET'])
-@role_required(['MLOwner'])
+# @role_required(['MLOwner'])
 def get_mining_licenses():
     issues, error = MLOwnerService.mining_licenses()
     
@@ -18,6 +18,7 @@ def get_mining_licenses():
 
 # POST route for /create-tpl
 @mining_owner_bp.route('/create-tpl', methods=['POST'])
+@role_required(['MLOwner'])
 def create_tpl():
     try:
         # Check if the Authorization token is present in the request
@@ -39,10 +40,13 @@ def create_tpl():
 
         # Get JSON data from the request
         data = request.get_json()
+        print("Data received")
+        print(data)
 
         # Check if data is valid
         if not data:
             return jsonify({"error": "No data provided in the request body"}), 400
+        
 
         # Call the create_tpl method with the provided 'data'
         issue, error = MLOwnerService.create_tpl(data)
@@ -89,10 +93,12 @@ def view_tpls():
     except Exception as e:
         return jsonify({"error": str(e)}), 500  # Return server error message
     
-@mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
+
+        # Put route for /update-ML
+@mining_owner_bp.route('/update-ml/<int:issue_id>', methods=['PUT'])
 @role_required(['MLOwner'])
-def mining_home():
-    try:
+def update_ml(issue_id):
+  try:
         # Check if the Authorization token is present in the request
         auth_header = request.headers.get('Authorization')
         if not auth_header:
@@ -104,7 +110,51 @@ def mining_home():
         
         # Extract the token from the header
         token = auth_header.split(' ')[1]
+        
+        # Now validate the token, you can add your custom token validation logic here
+        # For simplicity, we will assume the token is valid if it's present
+        if not token:  # You can add further validation logic here
+            return jsonify({"error": "Invalid or missing token"}), 401
 
+        # Get JSON data from the request
+        data = request.get_json()
+        
+
+        # Check if data is valid
+        # if not data:
+        #     return jsonify({"error": "No data provided in the request body"}), 400
+        if not data or "issue" not in data:
+            return jsonify({"error": "No valid issue detail provided"}), 400
+        
+        print(data)
+
+        # Call the create_tpl method with the provided 'data'
+        # issue, error = MLOwnerService.create_tpl(data)
+        updated_issue, error = MLOwnerService.update_issue(issue_id, data)
+
+        if error:
+            return jsonify({"error": error}), 400  # Return error message if something went wrong
+
+        return jsonify({"message": "Issue updated successfully", "updated_issue": updated_issue}), 200 # Return created issue if successful
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500  # Return server error message
+
+@mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
+@role_required(['MLOwner'])
+def mining_home():
+  try:
+        # Check if the Authorization token is present in the request
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization token is missing"}), 401
+        
+        # Check if the token starts with 'Bearer ' (you can also validate it further here if needed)
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid token format. Expected 'Bearer <token>'"}), 401
+        
+        # Extract the token from the header
+        token = auth_header.split(' ')[1]
         # Validate the token (for now, we simply check if it's present, but you can add further validation logic)
         if not token:
             return jsonify({"error": "Invalid or missing token"}), 401
@@ -119,3 +169,4 @@ def mining_home():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
