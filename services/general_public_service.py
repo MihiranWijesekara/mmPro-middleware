@@ -111,23 +111,22 @@ class GeneralPublicService:
             return False, str(e)
 
     @staticmethod
-    def create_complaint(phone):
+    def create_complaint(phone, vehicleNumber, token):
         issue_data = {
-            'issue': {
-                'project_id': 31,
-                'tracker_id': 26,
-                'subject': "New Complaint",
-                'status_id': 11,
-                'priority_id': 2,
-                'assigned_to_id': 59,
-                'start_date': "2024-01-31",
-                'due_date': "2024-02-14",
-                'custom_fields': [
-                    {'id': 3, 'name': "Mobile Number", 'value': phone},
-                    {'id': 90, 'name': "Complaint ID", 'value': "complaint01"}
-                ]
+                'issue': {
+                    'project_id': 31,  
+                    'tracker_id': 26,  
+                    'subject': "New Complaint",  
+                    'status_id': 11, 
+                    'priority_id': 2,  
+                    'assigned_to_id': 59,
+                    'custom_fields': [
+                        {'id': 3, 'name': "Mobile Number", 'value': phone},
+                        {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
+                        {'id': 68, 'name': "Role", 'value': "General Public"}
+                    ]
+                }
             }
-        }
 
         api_key = JWTUtils.get_api_key_from_token(token)
 

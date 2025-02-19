@@ -57,8 +57,8 @@ def verify_code():
 @role_required(['GeneralPublic'])
 def create_complaint():
     data = request.json
-    
-    success, result = GeneralPublicService.create_complaint(data['phone'])
+    token = request.headers.get("Authorization")
+    success, result = GeneralPublicService.create_complaint(data['phoneNumber'], data['vehicleNumber'], token)
 
     if success:
         return jsonify({'success': True, 'complaint_id': result})

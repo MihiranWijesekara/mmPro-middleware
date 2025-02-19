@@ -34,18 +34,17 @@ class JWTUtils:
     @staticmethod
     def decode_jwt_and_decrypt_api_key(token):
         try:
-            # Split the token to extract the JWT part (in case it's prefixed with 'Bearer ')
-            token = token.split(" ")[1] if " " in token else token
             
-            # Decode the token to get the payload
+            token = token.split(" ")[1] if " " in token else token
+          
             payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM], options={"verify_exp": True})
-            # Extract the encrypted API key from the payload
+      
             encrypted_api_key = payload.get('api_key')
             if encrypted_api_key:
-                # Decrypt the API key
+              
                 decrypted_api_key = JWTUtils.decrypt_api_key(encrypted_api_key)
-                payload['api_key'] = decrypted_api_key  # Add decrypted key back to the payload
-                return payload  # Return the full payload with the decrypted key
+                payload['api_key'] = decrypted_api_key  
+                return payload  
             else:
                 return {'message': 'API key is missing from the token'}
 
