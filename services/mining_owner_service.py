@@ -173,7 +173,7 @@ class MLOwnerService:
         # Service function to update an issue
     @staticmethod
     def update_issue(issue_id, data):
-      try:
+        try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 
@@ -222,7 +222,7 @@ class MLOwnerService:
 
     @staticmethod
     def mining_homeLicenses():
-      try:
+        try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 
