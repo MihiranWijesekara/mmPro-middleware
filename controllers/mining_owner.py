@@ -49,7 +49,7 @@ def create_tpl():
         
 
         # Call the create_tpl method with the provided 'data'
-        issue, error = MLOwnerService.create_tpl(data)
+        issue, error = MLOwnerService.create_tpl(data, auth_header)
 
         if error:
             return jsonify({"error": error}), 400  # Return error message if something went wrong
@@ -130,7 +130,7 @@ def update_ml(issue_id):
 
         # Call the create_tpl method with the provided 'data'
         # issue, error = MLOwnerService.create_tpl(data)
-        updated_issue, error = MLOwnerService.update_issue(issue_id, data)
+        updated_issue, error = MLOwnerService.update_issue(issue_id, data, auth_header)
 
         if error:
             return jsonify({"error": error}), 400  # Return error message if something went wrong
@@ -170,3 +170,71 @@ def mining_home():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+@mining_owner_bp.route('/ml-detail', methods=['GET'])
+@role_required(['MLOwner'])
+def ml_detail():
+    try:
+        # Extract the 'l_number' query parameter
+        l_number = request.args.get('l_number')
+        if not l_number:
+            return jsonify({"error": "Missing 'l_number' query parameter"}), 400
+
+        # Extract the Authorization token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid or missing Authorization token"}), 401
+
+        # Extract only the token value
+        token = auth_header.split(' ')[1]
+
+        # Call the service function with l_number and token
+        issue, error = MLOwnerService.ml_detail(l_number, token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"ml_detail": issue})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    
+    
+    
+    
+            # Put route for /update-ML
+@mining_owner_bp.route('/user-detail/<int:user_id>', methods=['GET'])
+@role_required(['MLOwner'])
+def user_detail(user_id):
+    try:
+        # Check if the Authorization token is present in the request
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization token is missing"}), 401
+        
+        # Check if the token starts with 'Bearer ' (you can also validate it further here if needed)
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid token format. Expected 'Bearer <token>'"}), 401
+        
+        # Extract the token from the header
+        token = auth_header.split(' ')[1]
+        
+        # Now validate the token, you can add your custom token validation logic here
+        # For simplicity, we will assume the token is valid if it's present
+        if not token:  # You can add further validation logic here
+            return jsonify({"error": "Invalid or missing token"}), 401
+
+
+        # Call the create_tpl method with the provided 'data'
+        # issue, error = MLOwnerService.create_tpl(data)
+        detail, error = MLOwnerService.user_detail(user_id, auth_header)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"user_detail": detail})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
