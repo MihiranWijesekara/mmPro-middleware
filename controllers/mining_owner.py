@@ -93,11 +93,12 @@ def view_tpls():
     except Exception as e:
         return jsonify({"error": str(e)}), 500  # Return server error message
     
+
         # Put route for /update-ML
 @mining_owner_bp.route('/update-ml/<int:issue_id>', methods=['PUT'])
 @role_required(['MLOwner'])
 def update_ml(issue_id):
-    try:
+  try:
         # Check if the Authorization token is present in the request
         auth_header = request.headers.get('Authorization')
         if not auth_header:
@@ -109,7 +110,7 @@ def update_ml(issue_id):
         
         # Extract the token from the header
         token = auth_header.split(' ')[1]
-
+        
         # Now validate the token, you can add your custom token validation logic here
         # For simplicity, we will assume the token is valid if it's present
         if not token:  # You can add further validation logic here
@@ -139,4 +140,33 @@ def update_ml(issue_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500  # Return server error message
 
+@mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
+@role_required(['MLOwner'])
+def mining_home():
+  try:
+        # Check if the Authorization token is present in the request
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization token is missing"}), 401
+        
+        # Check if the token starts with 'Bearer ' (you can also validate it further here if needed)
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid token format. Expected 'Bearer <token>'"}), 401
+        
+        # Extract the token from the header
+        token = auth_header.split(' ')[1]
+        # Validate the token (for now, we simply check if it's present, but you can add further validation logic)
+        if not token:
+            return jsonify({"error": "Invalid or missing token"}), 401
+
+        # If the token is valid, proceed with the mining_licenses logic
+        issues, error = MLOwnerService.mining_homeLicenses()
+        
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"mining_home": issues})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
