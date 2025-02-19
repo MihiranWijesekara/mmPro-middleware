@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
+from utils.jwt_utils import JWTUtils
+
 
 load_dotenv()
 
@@ -73,19 +75,20 @@ class MLOwnerService:
         return False
 
     @staticmethod
-    def create_tpl(data):
+    def create_tpl(data, token):
         print('----------------------------tpl data-----------------------------')
         print(data)
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
-            API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+            # Extract the user-specific API key from the token
+            api_key = JWTUtils.get_api_key_from_token(token)
 
             # Check if Redmine URL and API Key exist
-            if not REDMINE_URL or not API_KEY:
+            if not REDMINE_URL or not api_key:
                 return None, "Redmine URL or API Key is missing"
 
             # Ensure the API token is present before proceeding
-            if not API_KEY:
+            if not api_key:
                 return None, "API Token is required to create the issue"
 
             # Assign the correct owner name (Pasindu Lakshan)
@@ -96,7 +99,7 @@ class MLOwnerService:
             })
 
             headers = {
-                "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
+                "X-Redmine-API-Key": api_key,  # Include the token for authorization
                 "Content-Type": "application/json"
             }
             print("------------------------------------------------")
@@ -171,8 +174,10 @@ class MLOwnerService:
             return None, f"Server error: {str(e)}"
         
         # Service function to update an issue
+    
+    
     @staticmethod
-    def update_issue(issue_id, data):
+    def update_issue(issue_id, data, token):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
@@ -320,3 +325,98 @@ class MLOwnerService:
             return False  # Remaining must be greater than 0
         
         return True
+    
+    # @staticmethod
+    # def ml_detail(issue_id, token):
+    #     api_key = JWTUtils.get_api_key_from_token(token)
+    #     try:
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+
+    #         if not REDMINE_URL or not api_key:
+    #             return None, "Redmine URL or API Key is missing"
+    #         headers = {
+    #             "X-Redmine-API-Key": api_key,  # Include the token for authorization
+    #             "Content-Type": "application/json"
+    #         }
+    #         url = f"{REDMINE_URL}/issues/{issue_id}.json"
+    #         print("URL:", url)
+    #         response = requests.get(
+    #             url,  # Ensure correct JSON structure
+    #             headers=headers
+    #         )
+
+    #         if response.status_code != 200:
+    #             return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
+
+    #         issue = response.json().get("issue", {})
+
+
+    #         return issue, None  # Returning filtered issues and no error
+
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
+    
+    @staticmethod
+    def ml_detail(l_number, token):
+        api_key = JWTUtils.get_api_key_from_token(token)
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+
+            if not REDMINE_URL or not api_key:
+                return None, "Redmine URL or API Key is missing"
+            
+            headers = {
+                "X-Redmine-API-Key": api_key,
+                "Content-Type": "application/json"
+            }
+            
+            url = f"{REDMINE_URL}/projects/gsmb/issues.json"
+            print(f"Requesting: {url}")
+
+            response = requests.get(url, headers=headers)
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+
+            # Filter issues based on subject matching l_number
+            filtered_issues = [issue for issue in issues if issue.get("subject") == l_number]
+            print("Filtered Issues:", filtered_issues[0])
+
+            return filtered_issues[0] if filtered_issues else None, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+        
+        
+    @staticmethod
+    def user_detail(user_id, token):
+        api_key = JWTUtils.get_api_key_from_token(token)
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+
+            if not REDMINE_URL or not api_key:
+                return None, "Redmine URL or API Key is missing"
+            headers = {
+                "X-Redmine-API-Key": api_key,  # Include the token for authorization
+                "Content-Type": "application/json"
+            }
+            url = f"{REDMINE_URL}/users/{user_id}.json"
+            print("URL:", url)
+            response = requests.get(
+                url,  # Ensure correct JSON structure
+                headers=headers
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
+
+            user_detail = response.json().get("user", {})
+
+
+            return user_detail, None  # Returning filtered issues and no error
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
