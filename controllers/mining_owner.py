@@ -9,12 +9,28 @@ mining_owner_bp = Blueprint('mining_owner', __name__)
 @mining_owner_bp.route('/mining-licenses', methods=['GET'])
 @role_required(['MLOwner'])
 def get_mining_licenses():
-    issues, error = MLOwnerService.mining_licenses()
-    
-    if error:
-        return jsonify({"error": error}), 500
-
-    return jsonify({"mining_licenses": issues})
+    try:
+        # Extract token from the request headers
+        auth_header = request.headers.get("Authorization")
+        
+        if not auth_header:
+            return {"error": "Authorization token is missing"}, 400
+        
+        # Remove the "Bearer " prefix if it exists
+        token = auth_header.replace("Bearer ", "")
+        
+        if not token:
+            return {"error": "Authorization token is invalid"}, 400
+        
+        # Call the mining_licenses method with the token
+        issues, error = MLOwnerService.mining_licenses(token)
+        
+        if error:
+            return {"error": error}, 500
+        
+        return {"issues": issues}, 200
+    except Exception as e:
+        return {"error": f"Unexpected error: {str(e)}"}, 500
 
 # POST route for /create-tpl
 @mining_owner_bp.route('/create-tpl', methods=['POST'])
@@ -73,13 +89,8 @@ def view_tpls():
         # Extract the token from the header
         token = auth_header.split(' ')[1]
 
-        # Now validate the token, you can add your custom token validation logic here
-        # For simplicity, we will assume the token is valid if it's present
-        if not token:  # You can add further validation logic here
-            return jsonify({"error": "Invalid or missing token"}), 401
-
         # Fetch tpl data
-        issues, error = MLOwnerService.view_tpls()
+        issues, error = MLOwnerService.view_tpls(token)
 
         if error:
             return jsonify({"error": error}), 500
@@ -88,6 +99,7 @@ def view_tpls():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500  # Return server error message
+
     
 @mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
 @role_required(['MLOwner'])
@@ -110,7 +122,7 @@ def mining_home():
             return jsonify({"error": "Invalid or missing token"}), 401
 
         # If the token is valid, proceed with the mining_licenses logic
-        issues, error = MLOwnerService.mining_homeLicenses()
+        issues, error = MLOwnerService.mining_homeLicenses(token) # Pass token here
         
         if error:
             return jsonify({"error": error}), 500
