@@ -4,8 +4,6 @@ import os
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from config import Config
-import datetime
-import jwt
 from cryptography.fernet import Fernet
 
 load_dotenv()
@@ -32,7 +30,6 @@ class AuthService:
             if not user_data:
                 return None, None, 'User data not found'
 
-            # Check for the GSMB project role
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
@@ -46,12 +43,10 @@ class AuthService:
             if not gsm_project_role:
                 return None, None, 'User does not have a role in project GSMB'
 
-            # Extract the API key (Redmine exposes it under 'api_key')
             api_key = user_data.get('api_key')
             if not api_key:
                 return None, None, 'API key not found'
 
-            # Return the user data, role, and API key
             return user_data, gsm_project_role, api_key
 
         except Exception as e:
@@ -83,9 +78,8 @@ class AuthService:
                 return None, "User not found in Redmine"
 
             user_id = users_response.json()['users'][0]['id']
-            user_data = users_response.json()['users'][0]  # Get the user data
+            user_data = users_response.json()['users'][0] 
 
-            # Now, fetch the user's full data to get the API key
             user_details_response = requests.get(
                 f"{REDMINE_URL}/users/{user_id}.json",
                 headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}

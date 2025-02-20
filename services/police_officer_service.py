@@ -1,22 +1,25 @@
 import os
 import requests
 from dotenv import load_dotenv
+from utils.jwt_utils import JWTUtils
+from utils.user_utils import UserUtils
 
 load_dotenv()
 
+REDMINE_URL = os.getenv("REDMINE_URL")
+
 class PoliceOfficerService:
     @staticmethod
-    def check_lorry_number(lorry_number):
+    def check_lorry_number(lorry_number,token):
         try:
-            REDMINE_URL = os.getenv("REDMINE_URL")
-            API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+
+            API_KEY = JWTUtils.get_api_key_from_token(token)
 
             if not REDMINE_URL or not API_KEY:
                 return None, "Redmine URL or API Key is missing"
 
             headers = {"X-Redmine-API-Key": API_KEY}
 
-            # Fetch all TPL licenses (tracker_id = 8)
             tpl_params = {"tracker_id": 8}
             tpl_response = requests.get(f"{REDMINE_URL}/issues.json", params=tpl_params, headers=headers)
 
@@ -27,7 +30,6 @@ class PoliceOfficerService:
 
             lorry_number_lower = lorry_number.lower()
 
-            # Find the TPL license that matches the given lorry number (cf_13)
             tpl_license = next((issue for issue in tpl_issues if any(
                 cf["id"] == 13 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", [])
             )), None)
@@ -35,7 +37,6 @@ class PoliceOfficerService:
             if not tpl_license:
                 return None, "No TPL with this lorry number"
 
-            # Extract required TPL details
             tpl_data = {
                 "loadNumber": tpl_license["id"],  # Load number
                 "capacity": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 15), None),
@@ -75,3 +76,39 @@ class PoliceOfficerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def create_complaint(vehicleNumber, userID, token):
+
+        phoneNumber = UserUtils.get_user_phone(userID)
+        print(phoneNumber)
+
+        issue_data = {
+                'issue': {
+                    'project_id': 31,  
+                    'tracker_id': 26,  
+                    'subject': "New Complaint",  
+                    'status_id': 11, 
+                    'priority_id': 2,  
+                    'assigned_to_id': 59,
+                    'custom_fields': [
+                        {'id': 3, 'name': "Mobile Number", 'value': phoneNumber},
+                        {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
+                        {'id': 68, 'name': "Role", 'value': "PoliceOfficer"}
+                    ]
+                }
+            }
+
+        api_key = JWTUtils.get_api_key_from_token(token)
+
+        response = requests.post(
+            f'{REDMINE_URL}/issues.json',
+            json=issue_data,
+            headers={'X-Redmine-API-Key': api_key, 'Content-Type': 'application/json'}
+        )
+
+        if response.status_code == 201:
+            issue_id = response.json()['issue']['id']
+            return True, issue_id
+        else:
+            return False, 'Failed to create complaint'

@@ -26,7 +26,7 @@ def login():
     # Create JWT token using the User's role, api_key, and user_id
     jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
 
-    return jsonify({'token': jwt_token, 'role': user_role, 'username':username})
+    return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
 
 
 @auth_bp.route('/google-login', methods=['POST'])
@@ -40,4 +40,4 @@ def auth_google():
     # Create JWT token using the service
     jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
 
-    return jsonify({'token': jwt_token, 'role': user_role, 'username':username})
+    return jsonify({'token': jwt_token, 'role': user_role, 'username':username, 'userId':user_id})
