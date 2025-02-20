@@ -1,1 +1,1 @@
-CORS(app)
+/general-public

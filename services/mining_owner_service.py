@@ -9,6 +9,7 @@ from flask import request
 
 
 
+
 load_dotenv()
 
 class MLOwnerService:
@@ -38,6 +39,7 @@ class MLOwnerService:
             }
 
             headers = {
+                "Content-Type": "application/json",
                 "X-Redmine-API-Key": API_KEY
             }
 
@@ -275,6 +277,59 @@ class MLOwnerService:
     
     @staticmethod
     def update_issue(issue_id, data, token):
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+            print("View TPLs")
+            print(REDMINE_URL)
+            print(API_KEY)
+
+            if not REDMINE_URL or not API_KEY:
+                return None, "Redmine URL or API Key is missing"
+            headers = {
+                "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
+                "Content-Type": "application/json"
+            }
+            update_data = {"issue": data}  # Ensure "issue" is wrapped correctly
+
+            print("------------------------------------------------")
+            print("Request Payload:", data)
+            print("------------------------------------------------")
+            print('\n\n\n\n\n')
+            print("data payload", json.dumps(data))
+            print('Headers', headers)
+            url = f"{REDMINE_URL}/issues/{issue_id}.json"
+            print("URL:", url)
+            response = requests.put(
+                url,
+                json = data,  # Ensure correct JSON structure
+                headers=headers
+            )
+
+            print("Response Status Code:", response.status_code)
+            print("Response Headers:", response.headers)
+
+            # Check if response is empty (204 No Content)
+            if response.status_code == 204:
+                return {"message": "Issue updated successfully, but no content returned"}, None
+
+            # If status is not OK, return the error message
+            if response.status_code != 200:
+                return None, f"Failed to update issue: {response.status_code} - {response.text}"
+
+            # Attempt to parse the JSON response
+            try:
+                issue = response.json().get("issue", {})
+                return issue, None
+            except json.JSONDecodeError:
+                return None, "Invalid JSON response from server"
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+        
+        # Service function to update an issue
+    @staticmethod
+    def update_issue(issue_id, data):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
