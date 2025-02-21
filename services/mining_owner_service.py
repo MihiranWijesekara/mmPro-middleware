@@ -44,12 +44,17 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
+            # response = requests.get(
+            #     f"{REDMINE_URL}/projects/gsmb/issues.json",
+            #     params=params,
+            #     headers=headers
+            # )
+            limit = 1000
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
-
             # Check if the request was successful
             if response.status_code != 200:
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
@@ -119,8 +124,9 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
+            limit = 1000
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
@@ -207,8 +213,9 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
+            limit = 1000
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
