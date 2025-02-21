@@ -76,6 +76,7 @@ class MLOwnerService:
             # Only return relevant issue details like subject, description, dates, etc.
             relevant_issues = [
                 {
+                    "id": issue.get("id"),
                     "subject": issue.get("subject"),
                     "status": issue.get("status"),
                     "description": issue.get("description"),
@@ -284,7 +285,7 @@ class MLOwnerService:
     
     
     @staticmethod
-    def update_issue(issue_id, data, token):
+    def update_issue(issue_id, data):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
@@ -464,8 +465,8 @@ class MLOwnerService:
                 "X-Redmine-API-Key": api_key,
                 "Content-Type": "application/json"
             }
-            
-            url = f"{REDMINE_URL}/projects/gsmb/issues.json"
+            limit = LimitUtils.get_limit()
+            url = f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}"
             print(f"Requesting: {url}")
 
             response = requests.get(url, headers=headers)
