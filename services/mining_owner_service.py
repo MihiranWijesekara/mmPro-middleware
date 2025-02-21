@@ -6,6 +6,7 @@ from datetime import datetime
 from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
+from utils.limit_utils import LimitUtils
 
 
 
@@ -49,7 +50,7 @@ class MLOwnerService:
             #     params=params,
             #     headers=headers
             # )
-            limit = 1000
+            limit = LimitUtils.get_limit()
             response = requests.get(
                 f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
@@ -124,7 +125,7 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
-            limit = 1000
+            limit = LimitUtils.get_limit()
             response = requests.get(
                 f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
@@ -213,7 +214,7 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
-            limit = 1000
+            limit = LimitUtils.get_limit()
             response = requests.get(
                 f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
