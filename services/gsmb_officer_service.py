@@ -1,12 +1,17 @@
 import requests
 import os
 from dotenv import load_dotenv
+import json
+from datetime import datetime
+
+from utils.jwt_utils import JWTUtils
+
 
 load_dotenv()
 
 class GsmbOfficerService:
     @staticmethod
-    def get_mining_licenses():
+    def get_Issues_Data():
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")

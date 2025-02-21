@@ -111,7 +111,7 @@ class GeneralPublicService:
             return False, str(e)
 
     @staticmethod
-    def create_complaint(phone, vehicleNumber, token):
+    def create_complaint(phoneNumber, vehicleNumber, token):
         issue_data = {
                 'issue': {
                     'project_id': 31,  
@@ -121,7 +121,7 @@ class GeneralPublicService:
                     'priority_id': 2,  
                     'assigned_to_id': 59,
                     'custom_fields': [
-                        {'id': 3, 'name': "Mobile Number", 'value': phone},
+                        {'id': 3, 'name': "Mobile Number", 'value': phoneNumber},
                         {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
                         {'id': 68, 'name': "Role", 'value': "General Public"}
                     ]
