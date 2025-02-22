@@ -120,15 +120,6 @@ def update_ml(issue_id):
         if not auth_header.startswith('Bearer '):
             return jsonify({"error": "Invalid token format. Expected 'Bearer <token>'"}), 401
         
-        # Extract the token from the header
-        token = auth_header.split(' ')[1]
-        
-        # Now validate the token, you can add your custom token validation logic here
-        # For simplicity, we will assume the token is valid if it's present
-        if not token:  # You can add further validation logic here
-            return jsonify({"error": "Invalid or missing token"}), 401
-
-        # Get JSON data from the request
         data = request.get_json()
         
 
@@ -142,7 +133,7 @@ def update_ml(issue_id):
 
         # Call the create_tpl method with the provided 'data'
         # issue, error = MLOwnerService.create_tpl(data)
-        updated_issue, error = MLOwnerService.update_issue(issue_id, data, auth_header)
+        updated_issue, error = MLOwnerService.update_issue(issue_id, data)
 
         if error:
             return jsonify({"error": error}), 400  # Return error message if something went wrong
@@ -202,7 +193,7 @@ def ml_detail():
         token = auth_header.split(' ')[1]
 
         # Call the service function with l_number and token
-        issue, error = MLOwnerService.ml_detail(l_number, token)
+        issue, error = MLOwnerService.ml_detail(l_number, auth_header)
 
         if error:
             return jsonify({"error": error}), 500
