@@ -241,3 +241,24 @@ def user_detail(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# achintha baranch publish
