@@ -2,6 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from utils.jwt_utils import JWTUtils
+from utils.user_utils import UserUtils
 
 load_dotenv()
 
@@ -74,3 +75,40 @@ class PoliceOfficerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def create_complaint(vehicleNumber, userID, token):
+
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        phoneNumber = UserUtils.get_user_phone(userID)
+        print(phoneNumber)
+
+        issue_data = {
+                'issue': {
+                    'project_id': 31,  
+                    'tracker_id': 26,  
+                    'subject': "New Complaint",  
+                    'status_id': 11, 
+                    'priority_id': 2,  
+                    'assigned_to_id': 59,
+                    'custom_fields': [
+                        {'id': 3, 'name': "Mobile Number", 'value': phoneNumber},
+                        {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
+                        {'id': 68, 'name': "Role", 'value': "PoliceOfficer"}
+                    ]
+                }
+            }
+
+        api_key = JWTUtils.get_api_key_from_token(token)
+
+        response = requests.post(
+            f'{REDMINE_URL}/issues.json',
+            json=issue_data,
+            headers={'X-Redmine-API-Key': api_key, 'Content-Type': 'application/json'}
+        )
+
+        if response.status_code == 201:
+            issue_id = response.json()['issue']['id']
+            return True, issue_id
+        else:
+            return False, 'Failed to create complaint'
