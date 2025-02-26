@@ -50,10 +50,11 @@ class GeneralPublicService:
     #         return None, f"Server error: {str(e)}"
 
     @staticmethod
-    def is_lorry_number_valid(lorry_number, token):
+    def is_lorry_number_valid(lorry_number):
         try:
             # Extract the user-specific API key from the token
-            api_key = JWTUtils.get_api_key_from_token(token)
+            api_key = API_KEY
+
             if not REDMINE_URL or not api_key:
                 return None, "Redmine URL or API Key is missing"
 
@@ -111,7 +112,7 @@ class GeneralPublicService:
             return False, str(e)
 
     @staticmethod
-    def create_complaint(phoneNumber, vehicleNumber, token):
+    def create_complaint(phoneNumber, vehicleNumber):
         issue_data = {
                 'issue': {
                     'project_id': 31,  
@@ -128,7 +129,8 @@ class GeneralPublicService:
                 }
             }
 
-        api_key = JWTUtils.get_api_key_from_token(token)
+        # api_key = JWTUtils.get_api_key_from_token(token)
+        api_key = API_KEY
 
         response = requests.post(
             f'{REDMINE_URL}/issues.json',
