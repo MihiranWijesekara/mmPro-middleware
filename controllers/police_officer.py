@@ -28,9 +28,10 @@ def get_tpl_licenses():
 @role_required(['PoliceOfficer'])
 def create_complaint():
     data = request.json
-    
+
     token = request.headers.get("Authorization")
-    success, result = PoliceOfficerService.create_complaint(data['input'], data['userID'], token)
+    
+    success, result = PoliceOfficerService.create_complaint(data['input'],data['userID'],token)
 
     if success:
         return jsonify({'success': True, 'complaint_id': result})

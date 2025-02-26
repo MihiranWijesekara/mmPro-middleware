@@ -6,11 +6,12 @@ from utils.user_utils import UserUtils
 
 load_dotenv()
 
+REDMINE_URL = os.getenv("REDMINE_URL")
+
 class PoliceOfficerService:
     @staticmethod
     def check_lorry_number(lorry_number,token):
         try:
-            REDMINE_URL = os.getenv("REDMINE_URL")
 
             API_KEY = JWTUtils.get_api_key_from_token(token)
 
@@ -79,7 +80,6 @@ class PoliceOfficerService:
     @staticmethod
     def create_complaint(vehicleNumber, userID, token):
 
-        REDMINE_URL = os.getenv("REDMINE_URL")
         phoneNumber = UserUtils.get_user_phone(userID)
         print(phoneNumber)
 
