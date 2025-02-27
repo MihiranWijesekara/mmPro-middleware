@@ -8,9 +8,9 @@ from utils.jwt_utils import JWTUtils
 
 load_dotenv()
 
-TWILIO_ACCOUNT_SID = 'AC33b7a3d09751c9bddd39a142ae3b0a3d'
-TWILIO_AUTH_TOKEN = 'cdec635e8c1040069cf6fc69ef91ec3a'  
-VERIFY_SERVICE_SID = 'VA79d7740cc3365b67c375321cd1be4ff3'
+TWILIO_ACCOUNT_SID = 'AC99293cf8d316875de7dfd3c164e90cbb'
+TWILIO_AUTH_TOKEN = 'f848dae98a365e367fa4f08056c871c2'  
+VERIFY_SERVICE_SID = 'VA8e0fb628c45e51612bf3e2dd68ef1efe'
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -50,10 +50,11 @@ class GeneralPublicService:
     #         return None, f"Server error: {str(e)}"
 
     @staticmethod
-    def is_lorry_number_valid(lorry_number, token):
+    def is_lorry_number_valid(lorry_number):
         try:
             # Extract the user-specific API key from the token
-            api_key = JWTUtils.get_api_key_from_token(token)
+            api_key = API_KEY
+
             if not REDMINE_URL or not api_key:
                 return None, "Redmine URL or API Key is missing"
 
@@ -111,7 +112,7 @@ class GeneralPublicService:
             return False, str(e)
 
     @staticmethod
-    def create_complaint(phoneNumber, vehicleNumber, token):
+    def create_complaint(phoneNumber, vehicleNumber):
         issue_data = {
                 'issue': {
                     'project_id': 31,  
@@ -128,7 +129,8 @@ class GeneralPublicService:
                 }
             }
 
-        api_key = JWTUtils.get_api_key_from_token(token)
+        # api_key = JWTUtils.get_api_key_from_token(token)
+        api_key = API_KEY
 
         response = requests.post(
             f'{REDMINE_URL}/issues.json',

@@ -6,15 +6,15 @@ from utils.jwt_utils import JWTUtils
 general_public_bp = Blueprint('general_public', __name__)
 
 @general_public_bp.route('/validate-lorry-number', methods=['GET'])
-@role_required(['GeneralPublic'])
+# @role_required(['GeneralPublic'])
 def validate_lorry_number():
     lorry_number = request.args.get("lorry_number")  # Get lorry number from query params
-    token = request.headers.get("Authorization")
+    # token = request.headers.get("Authorization")
 
     if not lorry_number:
         return jsonify({"error": "Lorry number is required"}), 400  # 400 Bad Request
 
-    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number,token)
+    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
 
     if error:
         if "No TPL with this lorry number" in error:
@@ -25,7 +25,7 @@ def validate_lorry_number():
     return jsonify({"valid": tpl_license_exists}), 200  # Return True if valid
 
 @general_public_bp.route('/send-verification', methods=['POST'])
-@role_required(['GeneralPublic'])
+# @role_required(['GeneralPublic'])
 def send_verification():
     data = request.json
     phone = data['phone']
@@ -39,7 +39,7 @@ def send_verification():
 
 # Route for verifying the code
 @general_public_bp.route('/verify-code', methods=['POST'])
-@role_required(['GeneralPublic'])
+# @role_required(['GeneralPublic'])
 def verify_code():
     data = request.json
     phone = data['phone']
@@ -54,11 +54,11 @@ def verify_code():
 
 # Route for creating a complaint
 @general_public_bp.route('/create-complaint', methods=['POST'])
-@role_required(['GeneralPublic'])
+# @role_required(['GeneralPublic'])
 def create_complaint():
     data = request.json
-    token = request.headers.get("Authorization")
-    success, result = GeneralPublicService.create_complaint(data['phoneNumber'], data['vehicleNumber'], token)
+    # token = request.headers.get("Authorization")
+    success, result = GeneralPublicService.create_complaint(data['phoneNumber'], data['vehicleNumber'])
 
     if success:
         return jsonify({'success': True, 'complaint_id': result})
