@@ -264,8 +264,9 @@ class MLOwnerService:
                 "X-Redmine-API-Key": api_key,  # Include the token for authorization
                 "Content-Type": "application/json"
             }
-            # print("------------------------------------------------")
-            # print(data)
+            print("------------------------------------------------")
+            print(data)
+            print(json.dumps(data, indent=4))
             # Sending POST request to Redmine to create the issue
             response = requests.post(
                 f"{REDMINE_URL}/issues.json",
@@ -284,59 +285,59 @@ class MLOwnerService:
             return None, f"Server error: {str(e)}"
     
     
-    @staticmethod
-    def update_issue(issue_id, data):
-        try:
-            REDMINE_URL = os.getenv("REDMINE_URL")
-            API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
-            # print("View TPLs")
-            # print(REDMINE_URL)
-            # print(API_KEY)
+    # @staticmethod
+    # def update_issue(issue_id, data):
+    #     try:
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+    #         API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+    #         # print("View TPLs")
+    #         # print(REDMINE_URL)
+    #         # print(API_KEY)
 
-            if not REDMINE_URL or not API_KEY:
-                return None, "Redmine URL or API Key is missing"
-            headers = {
-                "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
-                "Content-Type": "application/json"
-            }
+    #         if not REDMINE_URL or not API_KEY:
+    #             return None, "Redmine URL or API Key is missing"
+    #         headers = {
+    #             "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
+    #             "Content-Type": "application/json"
+    #         }
 
-            # print("------------------------------------------------")
-            # print("Request Payload:", data)
-            # print("------------------------------------------------")
-            # print('\n\n\n\n\n')
-            # print("data payload", json.dumps(data))
-            # print('Headers', headers)
-            url = f"{REDMINE_URL}/issues/{issue_id}.json"
-            # print("URL:", url)
-            response = requests.put(
-                url,
-                json = data,  # Ensure correct JSON structure
-                headers=headers
-            )
+    #         # print("------------------------------------------------")
+    #         # print("Request Payload:", data)
+    #         # print("------------------------------------------------")
+    #         # print('\n\n\n\n\n')
+    #         # print("data payload", json.dumps(data))
+    #         # print('Headers', headers)
+    #         url = f"{REDMINE_URL}/issues/{issue_id}.json"
+    #         # print("URL:", url)
+    #         response = requests.put(
+    #             url,
+    #             json = data,  # Ensure correct JSON structure
+    #             headers=headers
+    #         )
 
-            # print("Response Status Code:", response.status_code)
-            # print("Response Headers:", response.headers)
+    #         # print("Response Status Code:", response.status_code)
+    #         # print("Response Headers:", response.headers)
 
-            # Check if response is empty (204 No Content)
-            if response.status_code == 204:
-                return {"message": "Issue updated successfully, but no content returned"}, None
+    #         # Check if response is empty (204 No Content)
+    #         if response.status_code == 204:
+    #             return {"message": "Issue updated successfully, but no content returned"}, None
 
-            # If status is not OK, return the error message
-            if response.status_code != 200:
-                return None, f"Failed to update issue: {response.status_code} - {response.text}"
+    #         # If status is not OK, return the error message
+    #         if response.status_code != 200:
+    #             return None, f"Failed to update issue: {response.status_code} - {response.text}"
 
-            # Attempt to parse the JSON response
-            try:
-                issue = response.json().get("issue", {})
-                return issue, None
-            except json.JSONDecodeError:
-                return None, "Invalid JSON response from server"
+    #         # Attempt to parse the JSON response
+    #         try:
+    #             issue = response.json().get("issue", {})
+    #             return issue, None
+    #         except json.JSONDecodeError:
+    #             return None, "Invalid JSON response from server"
 
-        except Exception as e:
-            return None, f"Server error: {str(e)}"
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
         
-        # Service function to update an issue
-    @staticmethod
+    #     # Service function to update an issue
+    # @staticmethod
     def update_issue(issue_id, data):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
