@@ -1,7 +1,0 @@
-flask
-flask-cors
-google-auth
-cryptography
-pyjwt
-twilio
-dotenv
