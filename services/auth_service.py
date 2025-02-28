@@ -4,8 +4,6 @@ import os
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from config import Config
-import datetime
-import jwt
 from cryptography.fernet import Fernet
 
 load_dotenv()

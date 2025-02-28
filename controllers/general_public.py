@@ -6,15 +6,15 @@ from utils.jwt_utils import JWTUtils
 general_public_bp = Blueprint('general_public', __name__)
 
 @general_public_bp.route('/validate-lorry-number', methods=['GET'])
-@role_required(['GeneralPublic'])
+# @role_required(['GeneralPublic'])
 def validate_lorry_number():
     lorry_number = request.args.get("lorry_number")  # Get lorry number from query params
-    token = request.headers.get("Authorization")
+    # token = request.headers.get("Authorization")
 
     if not lorry_number:
         return jsonify({"error": "Lorry number is required"}), 400  # 400 Bad Request
 
-    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number,token)
+    tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
 
     if error:
         if "No TPL with this lorry number" in error:
@@ -24,26 +24,66 @@ def validate_lorry_number():
 
     return jsonify({"valid": tpl_license_exists}), 200  # Return True if valid
 
+# @general_public_bp.route('/send-verification', methods=['POST'])
+# def send_verification():
+#     data = request.json
+#     phone = data['phone']
+
+#     success, result = GeneralPublicService.send_verification_code(phone)
+
+#     if success:
+#         return jsonify({'success': True, 'verification_id': result})
+#     else:
+#         return jsonify({'success': False, 'error': result}), 400
+
+# @general_public_bp.route('/verify-code', methods=['POST'])
+# def verify_code():
+#     data = request.json
+#     phone = data['phone']
+#     code = data['code']
+
+#     success, result = GeneralPublicService.verify_code(phone, code)
+
+#     if success:
+#         return jsonify({'success': True})
+#     else:
+#         return jsonify({'success': False, 'error': result}), 401
+
+@general_public_bp.route('/create-complaint', methods=['POST'])
+def create_complaint():
+    data = request.json
+    success, result = GeneralPublicService.create_complaint(data['phoneNumber'], data['vehicleNumber'])
+
+    if success:
+        return jsonify({'success': True, 'complaint_id': result})
+    else:
+        return jsonify({'success': False, 'error': result}), 500
+    
+
 @general_public_bp.route('/send-verification', methods=['POST'])
-@role_required(['GeneralPublic'])
 def send_verification():
     data = request.json
-    phone = data['phone']
+    phone = data.get('phone')
+
+    if not phone:
+        return jsonify({'success': False, 'error': 'Phone number is required'}), 400
+
 
     success, result = GeneralPublicService.send_verification_code(phone)
 
     if success:
-        return jsonify({'success': True, 'verification_id': result})
+        return jsonify({'success': True, 'message': result})
     else:
         return jsonify({'success': False, 'error': result}), 400
 
-# Route for verifying the code
 @general_public_bp.route('/verify-code', methods=['POST'])
-@role_required(['GeneralPublic'])
-def verify_code():
+def verify_code(): 
     data = request.json
-    phone = data['phone']
-    code = data['code']
+    phone = data.get('phone')
+    code = data.get('code')
+
+    if not phone or not code:
+        return jsonify({'success': False, 'error': 'Phone number and code are required'}), 400
 
     success, result = GeneralPublicService.verify_code(phone, code)
 
@@ -51,19 +91,6 @@ def verify_code():
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'error': result}), 401
-
-# Route for creating a complaint
-@general_public_bp.route('/create-complaint', methods=['POST'])
-@role_required(['GeneralPublic'])
-def create_complaint():
-    data = request.json
-    token = request.headers.get("Authorization")
-    success, result = GeneralPublicService.create_complaint(data['phoneNumber'], data['vehicleNumber'], token)
-
-    if success:
-        return jsonify({'success': True, 'complaint_id': result})
-    else:
-        return jsonify({'success': False, 'error': result}), 500
     
 
 @general_public_bp.route('/get-api', methods=['GET'])
@@ -74,15 +101,11 @@ def get_api():
     if not token or not token.startswith('Bearer '):
         return jsonify({'message': 'Authorization token is missing or malformed'}), 400
 
-    # Extract the token without the "Bearer " prefix
     token = token[len('Bearer '):]
 
-    # Decode JWT and decrypt the API key
     api_key = JWTUtils.decode_jwt_and_decrypt_api_key(token)
 
     if 'message' in api_key:
-        # If there's an error message in the response, return the error
-        return jsonify({'error': api_key['message']}), 401  # Token error handling
+        return jsonify({'error': api_key['message']}), 401 
 
-    # If no error, return the decrypted payload
     return jsonify(api_key)

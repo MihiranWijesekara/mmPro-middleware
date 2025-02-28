@@ -6,6 +6,8 @@ from datetime import datetime
 from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
+from utils.limit_utils import LimitUtils
+
 
 
 
@@ -38,16 +40,22 @@ class MLOwnerService:
             }
 
             headers = {
+                "Content-Type": "application/json",
                 "X-Redmine-API-Key": API_KEY
             }
 
             # Make the Redmine request
+            # response = requests.get(
+            #     f"{REDMINE_URL}/projects/gsmb/issues.json",
+            #     params=params,
+            #     headers=headers
+            # )
+            limit = LimitUtils.get_limit()
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
-
             # Check if the request was successful
             if response.status_code != 200:
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
@@ -68,6 +76,7 @@ class MLOwnerService:
             # Only return relevant issue details like subject, description, dates, etc.
             relevant_issues = [
                 {
+                    "id": issue.get("id"),
                     "subject": issue.get("subject"),
                     "status": issue.get("status"),
                     "description": issue.get("description"),
@@ -117,8 +126,9 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
+            limit = LimitUtils.get_limit()
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
@@ -205,8 +215,9 @@ class MLOwnerService:
             }
 
             # Make the Redmine request
+            limit = LimitUtils.get_limit()
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json",
+                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
@@ -233,8 +244,8 @@ class MLOwnerService:
 
     @staticmethod
     def create_tpl(data, token):
-        print('----------------------------tpl data-----------------------------')
-        print(data)
+        # print('----------------------------tpl data-----------------------------')
+        # print(data)
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             # Extract the user-specific API key from the token
@@ -255,6 +266,7 @@ class MLOwnerService:
             }
             print("------------------------------------------------")
             print(data)
+            print(json.dumps(data, indent=4))
             # Sending POST request to Redmine to create the issue
             response = requests.post(
                 f"{REDMINE_URL}/issues.json",
@@ -273,8 +285,60 @@ class MLOwnerService:
             return None, f"Server error: {str(e)}"
     
     
-    @staticmethod
-    def update_issue(issue_id, data, token):
+    # @staticmethod
+    # def update_issue(issue_id, data):
+    #     try:
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+    #         API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+    #         # print("View TPLs")
+    #         # print(REDMINE_URL)
+    #         # print(API_KEY)
+
+    #         if not REDMINE_URL or not API_KEY:
+    #             return None, "Redmine URL or API Key is missing"
+    #         headers = {
+    #             "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
+    #             "Content-Type": "application/json"
+    #         }
+
+    #         # print("------------------------------------------------")
+    #         # print("Request Payload:", data)
+    #         # print("------------------------------------------------")
+    #         # print('\n\n\n\n\n')
+    #         # print("data payload", json.dumps(data))
+    #         # print('Headers', headers)
+    #         url = f"{REDMINE_URL}/issues/{issue_id}.json"
+    #         # print("URL:", url)
+    #         response = requests.put(
+    #             url,
+    #             json = data,  # Ensure correct JSON structure
+    #             headers=headers
+    #         )
+
+    #         # print("Response Status Code:", response.status_code)
+    #         # print("Response Headers:", response.headers)
+
+    #         # Check if response is empty (204 No Content)
+    #         if response.status_code == 204:
+    #             return {"message": "Issue updated successfully, but no content returned"}, None
+
+    #         # If status is not OK, return the error message
+    #         if response.status_code != 200:
+    #             return None, f"Failed to update issue: {response.status_code} - {response.text}"
+
+    #         # Attempt to parse the JSON response
+    #         try:
+    #             issue = response.json().get("issue", {})
+    #             return issue, None
+    #         except json.JSONDecodeError:
+    #             return None, "Invalid JSON response from server"
+
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
+        
+    #     # Service function to update an issue
+    # @staticmethod
+    def update_issue(issue_id, data):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
@@ -396,13 +460,14 @@ class MLOwnerService:
             if not REDMINE_URL or not api_key:
                 return None, "Redmine URL or API Key is missing"
             
+            
             headers = {
                 "X-Redmine-API-Key": api_key,
                 "Content-Type": "application/json"
             }
-            
-            url = f"{REDMINE_URL}/projects/gsmb/issues.json"
-            print(f"Requesting: {url}")
+            limit = LimitUtils.get_limit()
+            url = f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}"
+            # print(f"Requesting: {url}")
 
             response = requests.get(url, headers=headers)
 
@@ -413,7 +478,7 @@ class MLOwnerService:
 
             # Filter issues based on subject matching l_number
             filtered_issues = [issue for issue in issues if issue.get("subject") == l_number]
-            print("Filtered Issues:", filtered_issues[0])
+            # print("Filtered Issues:", filtered_issues[0])
 
             return filtered_issues[0] if filtered_issues else None, None
 
@@ -434,7 +499,7 @@ class MLOwnerService:
                 "Content-Type": "application/json"
             }
             url = f"{REDMINE_URL}/users/{user_id}.json"
-            print("URL:", url)
+            # print("URL:", url)
             response = requests.get(
                 url,  # Ensure correct JSON structure
                 headers=headers
