@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
 from utils.jwt_utils import JWTUtils
+import random
+from diskcache import Cache
+
+
+cache = Cache('otp_cache') 
 
 
 load_dotenv()
@@ -82,34 +87,75 @@ class GeneralPublicService:
             return None, f"Server error: {str(e)}"
 
         
+    # @staticmethod
+    # def send_verification_code(phone):
+    #     try:
+    #         verification = client.verify \
+    #             .v2 \
+    #             .services(VERIFY_SERVICE_SID) \
+    #             .verifications \
+    #             .create(to=phone, channel='sms')
+
+    #         return True, verification.sid
+    #     except TwilioException as e:
+    #         return False, str(e)
+
+    # @staticmethod
+    # def verify_code(phone, code):
+    #     try:
+    #         verification_check = client.verify \
+    #             .v2 \
+    #             .services(VERIFY_SERVICE_SID) \
+    #             .verification_checks \
+    #             .create(to=phone, code=code)
+
+    #         if verification_check.status == 'approved':
+    #             return True, None
+    #         else:
+    #             return False, 'Invalid code'
+    #     except TwilioException as e:
+    #         return False, str(e)
+
+    @staticmethod
+    def generate_otp():
+        return str(random.randint(100000, 999999))  # Generate a 6-digit OTP
+
     @staticmethod
     def send_verification_code(phone):
-        try:
-            verification = client.verify \
-                .v2 \
-                .services(VERIFY_SERVICE_SID) \
-                .verifications \
-                .create(to=phone, channel='sms')
+        otp = GeneralPublicService.generate_otp()  # Generate OTP
+        cache.set(phone, otp, expire=600)  # Store OTP in cache for 10 minutes
 
-            return True, verification.sid
-        except TwilioException as e:
+        try:
+            url = "https://message.textware.lk:5001/sms/send_sms.php"
+            params = {
+                "username": "aasait",
+                "password": "Aasait@textware123",
+                "src": "TWTEST",
+                "dst": phone,
+                "msg": f"Your OTP code is {otp}"
+            }
+            response = requests.get(url, params=params)
+
+            if response.status_code == 200:
+                return True, "Message sent successfully"
+            else:
+                return False, f"Failed to send message: {response.text}"
+
+        except requests.RequestException as e:
             return False, str(e)
 
     @staticmethod
     def verify_code(phone, code):
-        try:
-            verification_check = client.verify \
-                .v2 \
-                .services(VERIFY_SERVICE_SID) \
-                .verification_checks \
-                .create(to=phone, code=code)
+        stored_otp = cache.get(phone)  # Retrieve stored OTP
 
-            if verification_check.status == 'approved':
-                return True, None
-            else:
-                return False, 'Invalid code'
-        except TwilioException as e:
-            return False, str(e)
+        if stored_otp is None:
+            return False, "OTP expired or not found"
+
+        if stored_otp == code:
+            cache.delete(phone)  # Remove OTP after successful verification
+            return True, None
+        else:
+            return False, "Invalid OTP"
 
     @staticmethod
     def create_complaint(phoneNumber, vehicleNumber):
