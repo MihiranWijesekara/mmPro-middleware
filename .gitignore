@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+otp_cache/cache.db
+
