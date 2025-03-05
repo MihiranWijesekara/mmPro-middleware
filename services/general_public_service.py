@@ -129,7 +129,7 @@ class GeneralPublicService:
             url = "https://message.textware.lk:5001/sms/send_sms.php"
             params = {
                 "username": "aasait",
-                "password": "Aasait@textware123",
+                "password": "Aasait@textware132",
                 "src": "TWTEST",
                 "dst": phone,
                 "msg": f"Your OTP code is {otp}"
@@ -174,8 +174,7 @@ class GeneralPublicService:
                     ]
                 }
             }
-
-        # api_key = JWTUtils.get_api_key_from_token(token)
+        
         api_key = API_KEY
 
         response = requests.post(
