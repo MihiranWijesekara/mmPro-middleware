@@ -6,13 +6,11 @@ from utils.jwt_utils import JWTUtils
 general_public_bp = Blueprint('general_public', __name__)
 
 @general_public_bp.route('/validate-lorry-number', methods=['GET'])
-# @role_required(['GeneralPublic'])
 def validate_lorry_number():
-    lorry_number = request.args.get("lorry_number")  # Get lorry number from query params
-    # token = request.headers.get("Authorization")
+    lorry_number = request.args.get("lorry_number")  
 
     if not lorry_number:
-        return jsonify({"error": "Lorry number is required"}), 400  # 400 Bad Request
+        return jsonify({"error": "Lorry number is required"}), 400
 
     tpl_license_exists, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
 
@@ -24,30 +22,6 @@ def validate_lorry_number():
 
     return jsonify({"valid": tpl_license_exists}), 200  # Return True if valid
 
-# @general_public_bp.route('/send-verification', methods=['POST'])
-# def send_verification():
-#     data = request.json
-#     phone = data['phone']
-
-#     success, result = GeneralPublicService.send_verification_code(phone)
-
-#     if success:
-#         return jsonify({'success': True, 'verification_id': result})
-#     else:
-#         return jsonify({'success': False, 'error': result}), 400
-
-# @general_public_bp.route('/verify-code', methods=['POST'])
-# def verify_code():
-#     data = request.json
-#     phone = data['phone']
-#     code = data['code']
-
-#     success, result = GeneralPublicService.verify_code(phone, code)
-
-#     if success:
-#         return jsonify({'success': True})
-#     else:
-#         return jsonify({'success': False, 'error': result}), 401
 
 @general_public_bp.route('/create-complaint', methods=['POST'])
 def create_complaint():
