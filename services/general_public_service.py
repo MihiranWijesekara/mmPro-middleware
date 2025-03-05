@@ -129,7 +129,7 @@ class GeneralPublicService:
             url = "https://message.textware.lk:5001/sms/send_sms.php"
             params = {
                 "username": "aasait",
-                "password": "Aasait@textware132",
+                "password": "Aasait@textware123",
                 "src": "TWTEST",
                 "dst": phone,
                 "msg": f"Your OTP code is {otp}"
