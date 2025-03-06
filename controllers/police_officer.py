@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify, request
-from middleware.auth_middleware import role_required
+from middleware.auth_middleware import role_required,check_token
 from services.police_officer_service import PoliceOfficerService
 
 
 police_officer_bp = Blueprint('police_officer', __name__)
 
 @police_officer_bp.route('/check-lorry-number', methods=['GET'])
+@check_token
 @role_required(['PoliceOfficer'])
 def get_tpl_licenses():
     lorry_number = request.args.get("lorry_number")  

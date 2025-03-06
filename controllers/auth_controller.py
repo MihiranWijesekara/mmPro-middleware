@@ -4,6 +4,30 @@ from utils.jwt_utils import JWTUtils
 
 auth_bp = Blueprint('auth_controller', __name__)
 
+# @auth_bp.route('/login', methods=['POST'])
+# def login():
+#     data = request.get_json()
+#     username = data.get('username')
+#     password = data.get('password')
+
+#     if not username or not password:
+#         return jsonify({'message': 'Username and password are required'}), 400
+
+#     user_data, user_role, api_key = AuthService.authenticate_user(username, password)
+    
+#     if not user_data:
+#         return jsonify({'message': user_role}), 401
+
+#     # Create a User object
+    
+#     user_id=user_data.get('id'),
+#     username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
+
+#     # Create JWT token using the User's role, api_key, and user_id
+#     jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+
+#     return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -18,15 +42,20 @@ def login():
     if not user_data:
         return jsonify({'message': user_role}), 401
 
-    # Create a User object
-    
-    user_id=user_data.get('id'),
-    username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
+    # Extract user details
+    user_id = user_data.get('id')
+    username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
 
-    # Create JWT token using the User's role, api_key, and user_id
-    jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+    # Generate access & refresh tokens
+    tokens = JWTUtils.create_jwt_token(user_id, user_role, api_key)
 
-    return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
+    return jsonify({
+        'access_token': tokens['access_token'],
+        'refresh_token': tokens['refresh_token'],
+        'role': user_role,
+        'username': username,
+        'userId': user_id
+    })
 
 
 @auth_bp.route('/google-login', methods=['POST'])

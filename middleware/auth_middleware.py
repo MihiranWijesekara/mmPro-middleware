@@ -3,6 +3,23 @@ from flask import request, jsonify
 from functools import wraps
 from config import Config
 
+def check_token():
+    """Extracts, verifies, and decodes the JWT token from the request headers."""
+    token = request.headers.get('Authorization')
+    
+    if not token:
+        return None, jsonify({"message": "Token is missing"}), 403
+
+    try:
+        token = token.split(" ")[1]  # Remove "Bearer " prefix
+        payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
+        return payload, None  # Return payload if valid
+
+    except jwt.ExpiredSignatureError:
+        return None, jsonify({"message": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return None, jsonify({"message": "Invalid token"}), 401
+
 def role_required(allowed_roles):
     def wrapper(f):
         @wraps(f)
