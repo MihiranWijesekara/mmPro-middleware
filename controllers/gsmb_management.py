@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required
 from services.gsmb_managemnt_service import GsmbManagmentService
 
+
 # Define the Blueprint
 gsmb_management_bp = Blueprint('gsmb_management', __name__) 
 
@@ -18,6 +19,7 @@ def monthly_total_sand_cubes():
         return jsonify({"error": error}), 500
 
     return jsonify({"issues": issues})
+
 
 @gsmb_management_bp.route('/fetch-top-mining-holders', methods=['GET'])                   
 @role_required(['GSMBManagement'])         
@@ -79,6 +81,7 @@ def transport_license_destination():
         return jsonify({"error": error}), 500
 
     return jsonify({"issues": issues})
+
 
 #Fetch mining license data by location
 @gsmb_management_bp.route('/total-location-ml', methods=['GET'])
