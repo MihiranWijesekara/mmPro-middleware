@@ -30,8 +30,7 @@ class JWTUtils:
     def create_jwt_token(user_id, user_role, api_key):
         encrypted_api_key = JWTUtils.cipher.encrypt(api_key.encode()).decode()
         
-        # Access token (short-lived, e.g., 15 min)
-        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
+        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)
         access_payload = {
             'user_id': user_id,
             'role': user_role,
@@ -40,7 +39,6 @@ class JWTUtils:
         }
         access_token = jwt.encode(access_payload, Config.SECRET_KEY, algorithm=Config.JWT_ALGORITHM)
 
-        # Refresh token (longer-lived, e.g., 7 days)
         refresh_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
         refresh_payload = {
             'user_id': user_id,
@@ -54,6 +52,24 @@ class JWTUtils:
             'access_token': access_token,
             'refresh_token': refresh_token
         }
+    
+    @staticmethod
+    def create_access_token(user_id, user_role, api_key):
+        """
+        Generate a short-lived access token.
+        """
+        encrypted_api_key = JWTUtils.cipher.encrypt(api_key.encode()).decode()
+
+        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
+        access_payload = {
+            'user_id': user_id,
+            'role': user_role,
+            'api_key': encrypted_api_key,
+            'exp': access_token_exp
+        }
+
+        return jwt.encode(access_payload, Config.SECRET_KEY, algorithm=Config.JWT_ALGORITHM)
+
 
     @staticmethod
     def decrypt_api_key(encrypted_api_key):
