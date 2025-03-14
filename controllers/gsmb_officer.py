@@ -1,6 +1,6 @@
 # from flask_cors import CORS
 from flask import Blueprint, jsonify, request
-from middleware.auth_middleware import role_required
+from middleware.auth_middleware import role_required, check_token
 from services.gsmb_officer_service import GsmbOfficerService
 
 
@@ -11,6 +11,7 @@ gsmb_officer_bp = Blueprint('gsmb_officer', __name__)
 
 
 @gsmb_officer_bp.route('/gsmb-issue', methods=['GET'])
+@check_token
 @role_required(['GSMBOfficer'])
 def get_mining_licenses():
     # Get the token from the request header
@@ -33,6 +34,7 @@ def get_mining_licenses():
 
             
 @gsmb_officer_bp.route('/user-detail/<int:user_id>', methods=['GET'])
+@check_token
 @role_required(['GSMBOfficer'])
 def user_detail(user_id):
     try:
@@ -72,6 +74,7 @@ def user_detail(user_id):
 
            # Put route for /update-ML
 @gsmb_officer_bp.route('/add-license', methods=['POST'])
+@check_token
 @role_required(['GSMBOfficer'])
 def add_new_license():
     try:
@@ -108,6 +111,7 @@ def add_new_license():
     
            # Fetch a single license by ID
 @gsmb_officer_bp.route('/get-license/<int:licenseId>', methods=['GET'])
+@check_token
 @role_required(['GSMBOfficer'])
 def get_license_details(licenseId):
     try:
@@ -135,6 +139,7 @@ def get_license_details(licenseId):
 
            # Update a license by ID
 @gsmb_officer_bp.route('/update-license/<int:licenseId>', methods=['PUT'])
+@check_token
 @role_required(['GSMBOfficer'])
 def update_license(licenseId):
     try:
@@ -174,6 +179,7 @@ def update_license(licenseId):
 
            # Register  ML Owner
 @gsmb_officer_bp.route('/add-mlowner', methods=['POST'])
+@check_token
 @role_required(['GSMBOfficer'])
 def add_new_mlowner():
     try:
@@ -215,6 +221,7 @@ def add_new_mlowner():
 
 
 @gsmb_officer_bp.route('/view-tpls', methods=['GET'])
+@check_token
 @role_required(['GSMBOfficer'])
 def view_tpls():
     try:
@@ -249,6 +256,7 @@ def view_tpls():
 
            # Get MLowners
 @gsmb_officer_bp.route('/get-mlowners', methods=['GET'])
+@check_token
 @role_required(['GSMBOfficer'])
 def get_mlowners():
     try:
