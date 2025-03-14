@@ -47,6 +47,7 @@ def login():
 
     # Extract user details
     user_id = user_data.get('id')
+    
     username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
 
     # Generate access & refresh tokens
@@ -109,23 +110,24 @@ def refresh_token():
         return jsonify({"message": "Refresh token is required"}), 401
 
     try:
-        # Decode refresh token
         decoded_payload = jwt.decode(refresh_token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
 
         if not decoded_payload.get("refresh"):
             return jsonify({"message": "Invalid refresh token"}), 401
 
         user_id = decoded_payload["user_id"]
+        print(user_id)
         user_role = decoded_payload["role"]
+        print(user_role)
 
-        # Fetch API key using user_id
+
         api_key = UserUtils.get_user_api_key(user_id)
+        print(api_key)
 
-        # Generate **only** a new access token, keep the same refresh token
         new_access_token = JWTUtils.create_access_token(user_id, user_role, api_key)
 
         return jsonify({
-            'access_token': new_access_token  # ✅ Only return the access token
+            'access_token': new_access_token  
         })
 
     except jwt.ExpiredSignatureError:

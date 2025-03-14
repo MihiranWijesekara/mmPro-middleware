@@ -17,17 +17,16 @@ def check_token(f):
         token = request.headers.get('Authorization')
         
         if not token:
-            raise TokenValidationError("Token is missing", 403)
+            return jsonify({"error": "Token is missing"}), 403
 
         try:
             token = token.split(" ")[1]  # Remove 'Bearer ' prefix
             payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
-            # Pass the payload as part of the request context or as an argument
-            request.payload = payload
+            request.payload = payload  # Pass decoded payload in request
         except jwt.ExpiredSignatureError:
-            raise TokenValidationError("Token has expired", 401)
+            return jsonify({"error": "Token has expired"}), 401
         except jwt.InvalidTokenError:
-            raise TokenValidationError("Invalid token", 401)
+            return jsonify({"error": "Invalid token"}), 401
         
         return f(*args, **kwargs)
 

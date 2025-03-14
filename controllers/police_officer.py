@@ -26,6 +26,7 @@ def get_tpl_licenses():
     return jsonify({"license_details": issues})
 
 @police_officer_bp.route('/create-complaint', methods=['POST'])
+@check_token
 @role_required(['PoliceOfficer'])
 def create_complaint():
     data = request.json

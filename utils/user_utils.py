@@ -51,15 +51,15 @@ class UserUtils:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
 
-            user_data = response.json().get("user", {})
-            custom_fields = user_data.get("custom_fields", [])
+            print(response.json())
 
-            # Search for the API key field
-            for field in custom_fields:
-                if field["name"].lower() == "api key":
-                    return field.get("value", "N/A")  
-                
-            return "N/A"  # If no API key found
+            user_data = response.json().get("user", {})
+
+            # ✅ Directly fetch API key from the response
+            api_key = user_data.get("api_key")
+
+            return api_key if api_key else "N/A"  
+
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching user API key: {e}")
