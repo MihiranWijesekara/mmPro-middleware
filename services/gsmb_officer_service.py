@@ -34,7 +34,6 @@ class GsmbOfficerService:
             }
 
             url = f"{REDMINE_URL}/projects/gsmb/issues.json"
-            print(f"Fetching data from URL: {url}")
 
             response = requests.get(url, headers=headers)
 
@@ -42,7 +41,6 @@ class GsmbOfficerService:
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
 
             issues = response.json().get("issues", [])
-            print(f"Issues retrieved: {issues}")
 
             return issues, None  # Returning the list of issues and no error
 
@@ -65,7 +63,7 @@ class GsmbOfficerService:
                 "Content-Type": "application/json"
             }
             url = f"{REDMINE_URL}/users/{user_id}.json"
-            print("URL:", url)
+
             response = requests.get(
                 url,  # Ensure correct JSON structure
                 headers=headers
@@ -170,7 +168,7 @@ class GsmbOfficerService:
                 "Content-Type": "application/json"
             }
             url = f"{REDMINE_URL}/issues/{licenseId}.json"
-            print("URL:", url)
+
             response = requests.get(
                 url,  # Ensure correct JSON structure
                 headers=headers
@@ -413,7 +411,7 @@ class GsmbOfficerService:
                 "Content-Type": "application/json"
             }
             url = f"{REDMINE_URL}/projects/GSMB/memberships.json"
-            print("URL:", url)
+        
             response = requests.get(
                 url,  # Ensure correct JSON structure
                 headers=headers
@@ -446,7 +444,7 @@ class GsmbOfficerService:
 
                 if user_response.status_code != 200:
                     return None, f"Failed to fetch user details: {user_response.status_code} - {user_response.text}"
-                print("User Response:", user_response.json())  # Add this for debugging
+                
 
                 # Handle the response type
                 user_details = user_response.json()
@@ -460,7 +458,7 @@ class GsmbOfficerService:
                 if not user_details:
                    user_details = {}    
 
-                print(f"Token received: {token}")
+            
                 licenses, error = GsmbOfficerService.get_user_licenses(user_id, token)
 
                 if error:
@@ -504,17 +502,12 @@ class GsmbOfficerService:
         url = f"{REDMINE_URL}/projects/GSMB/issues.json?assigned_to_id={user_id}"
         response = requests.get(url, headers=headers)
         
-        
-        # Debugging: Print the response from the API
-        response_json = response.json()
-        print("API Response:", response_json)
+
 
         if response.status_code != 200:
             return None, f"Failed to fetch licenses: {response.status_code} - {response.text}"
 
         issues = response.json().get("issues", [])
-        print("Issues:", issues)  # Debugging: Print the issues list
-
 
         if not issues:
             return [], None  # Return an empty list if no issues are found
@@ -524,13 +517,6 @@ class GsmbOfficerService:
             issue for issue in issues
             if issue.get('tracker', {}).get('name') == 'ML'
         ]
-        
-        if not licenses:
-           print(f"No ML licenses found for user {user_id}")  # Log for debugging
-
-        # Debugging: Print each issue to inspect its structure
-        for issue in licenses:
-            print("License Issue:", issue)
     
 
         # After filtering, extract the custom fields and other necessary info for licenses
@@ -561,8 +547,6 @@ class GsmbOfficerService:
            'expiryDate': expiry_date
         })
         
-        # Debugging: Print the final licenses data
-        print("Final Licenses Data:", licenses_data)
 
         return licenses_data, None
        except Exception as e:

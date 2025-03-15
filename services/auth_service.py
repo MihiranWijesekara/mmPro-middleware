@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 
 load_dotenv()
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID_MOBILE")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
 REDMINE_ADMIN_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 class AuthService:
@@ -66,6 +66,7 @@ class AuthService:
 
             # Extract email from the token info
             email = id_info.get('email')
+            print(email)
             print(f'the email is {email}')
             if not email:
                 return None, "Email not found in Google token"
