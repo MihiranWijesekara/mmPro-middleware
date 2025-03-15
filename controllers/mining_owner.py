@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from middleware.auth_middleware import role_required
+from middleware.auth_middleware import role_required,check_token
 from services.mining_owner_service import MLOwnerService
 
 # Define the Blueprint for mining_owner
@@ -7,7 +7,8 @@ mining_owner_bp = Blueprint('mining_owner', __name__)
 
 # GET route for /mining-licenses (already exists)
 @mining_owner_bp.route('/mining-licenses', methods=['GET'])
-# @role_required(['MLOwner'])
+@check_token
+@role_required(['MLOwner'])
 def get_mining_licenses():
     try:
         # Extract token from the request headers
@@ -34,6 +35,7 @@ def get_mining_licenses():
 
 # POST route for /create-tpl
 @mining_owner_bp.route('/create-tpl', methods=['POST'])
+@check_token
 @role_required(['MLOwner'])
 def create_tpl():
     try:
@@ -78,6 +80,7 @@ def create_tpl():
 # View tpl route
 # GET route for /view-tpls
 @mining_owner_bp.route('/view-tpls', methods=['GET'])
+@check_token
 @role_required(['MLOwner'])
 def view_tpls():
     try:
@@ -108,6 +111,7 @@ def view_tpls():
 
         # Put route for /update-ML
 @mining_owner_bp.route('/update-ml/<int:issue_id>', methods=['PUT'])
+@check_token
 @role_required(['MLOwner'])
 def update_ml(issue_id):
     try:
@@ -144,6 +148,7 @@ def update_ml(issue_id):
         return jsonify({"error": str(e)}), 500  # Return server error message
 
 @mining_owner_bp.route('/mining-homeLicenses', methods=['GET'])
+@check_token
 @role_required(['MLOwner'])
 def mining_home():
     try:
@@ -176,6 +181,7 @@ def mining_home():
 
 
 @mining_owner_bp.route('/ml-detail', methods=['GET'])
+@check_token
 @role_required(['MLOwner'])
 def ml_detail():
     try:
@@ -209,6 +215,7 @@ def ml_detail():
     
             # Put route for /update-ML
 @mining_owner_bp.route('/user-detail/<int:user_id>', methods=['GET'])
+@check_token
 @role_required(['MLOwner'])
 def user_detail(user_id):
     try:
