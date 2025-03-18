@@ -191,7 +191,6 @@ def add_new_mlowner():
 
         # Get the userData from the request body (expected to be a JSON)
         userData = request.json 
-        print(userData) 
 
         #validate the userData, ensure required data is present 
         if not userData or 'user' not in userData:
