@@ -1,8 +1,35 @@
 from flask import Blueprint, request, jsonify
 from services.auth_service import AuthService
 from utils.jwt_utils import JWTUtils
+from utils.user_utils import UserUtils
+import jwt
+from config import Config
 
 auth_bp = Blueprint('auth_controller', __name__)
+
+# @auth_bp.route('/login', methods=['POST'])
+# def login():
+#     data = request.get_json()
+#     username = data.get('username')
+#     password = data.get('password')
+
+#     if not username or not password:
+#         return jsonify({'message': 'Username and password are required'}), 400
+
+#     user_data, user_role, api_key = AuthService.authenticate_user(username, password)
+    
+#     if not user_data:
+#         return jsonify({'message': user_role}), 401
+
+#     # Create a User object
+    
+#     user_id=user_data.get('id'),
+#     username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
+
+#     # Create JWT token using the User's role, api_key, and user_id
+#     jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+
+#     return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -18,15 +45,21 @@ def login():
     if not user_data:
         return jsonify({'message': user_role}), 401
 
-    # Create a User object
+    # Extract user details
+    user_id = user_data.get('id')
     
-    user_id=user_data.get('id'),
-    username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
+    username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
 
-    # Create JWT token using the User's role, api_key, and user_id
-    jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+    # Generate access & refresh tokens
+    tokens = JWTUtils.create_jwt_token(user_id, user_role, api_key)
 
-    return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
+    return jsonify({
+        'token': tokens['access_token'],
+        'refresh_token': tokens['refresh_token'],
+        'role': user_role,
+        'username': username,
+        'userId': user_id
+    })
 
 
 @auth_bp.route('/google-login', methods=['POST'])
@@ -65,4 +98,43 @@ def mobile_auth_google():
     jwt_token = JWTUtils.create_jwt_token(user_id, user_role, api_key)
 
     return jsonify({'token': jwt_token, 'role': user_role, 'username': username, 'userId': user_id})
+
+
+@auth_bp.route('/refresh-token', methods=['POST'])
+def refresh_token():
+    
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+
+    if not refresh_token:
+        return jsonify({"message": "Refresh token is required"}), 401
+
+    try:
+        decoded_payload = jwt.decode(refresh_token, Config.SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
+
+        if not decoded_payload.get("refresh"):
+            return jsonify({"message": "Invalid refresh token"}), 401
+
+        user_id = decoded_payload["user_id"]
+        print(user_id)
+        user_role = decoded_payload["role"]
+        print(user_role)
+
+
+        api_key = UserUtils.get_user_api_key(user_id)
+        print(api_key)
+
+        new_access_token = JWTUtils.create_access_token(user_id, user_role, api_key)
+
+        return jsonify({
+            'access_token': new_access_token  
+        })
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "Refresh token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"message": "Invalid token"}), 401
+    except Exception as e:
+        print(f"Error processing token: {e}")  # Log error internally
+        return jsonify({"message": "Internal server error"}), 500
 
