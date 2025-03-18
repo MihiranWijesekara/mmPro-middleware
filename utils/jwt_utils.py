@@ -30,7 +30,7 @@ class JWTUtils:
     def create_jwt_token(user_id, user_role, api_key):
         encrypted_api_key = JWTUtils.cipher.encrypt(api_key.encode()).decode()
         
-        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
+        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=60)
         access_payload = {
             'user_id': user_id,
             'role': user_role,
