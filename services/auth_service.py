@@ -10,12 +10,20 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from services.general_public_service import cache  # Import the existing cache instance
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
 REDMINE_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+REDMINE_ADMIN_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+logger.info(f"Redmine URL: {REDMINE_URL}")
+
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
     cipher = Fernet(ENCRYPTION_KEY)
@@ -39,7 +47,7 @@ class AuthService:
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
                 print(f"Checking project: {project_name}")
-                if project_name == "GSMB":
+                if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
                         gsm_project_role = roles[0].get('name')
@@ -105,6 +113,7 @@ class AuthService:
 
             # Get User Role from Redmine Memberships
             memberships_response = requests.get(
+              
                 f"{REDMINE_URL}/projects/GSMB/memberships.json",
                 headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
@@ -175,8 +184,10 @@ class AuthService:
                 return None, "API key not found for the user"
 
             memberships_response = requests.get(
+              
                 f"{REDMINE_URL}/projects/GSMB/memberships.json",
                 headers={"X-Redmine-API-Key": REDMINE_API_KEY}
+
             )
 
             if memberships_response.status_code != 200:

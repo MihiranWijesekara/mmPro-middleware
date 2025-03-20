@@ -19,24 +19,26 @@ class MLOwnerService:
     @staticmethod
     def mining_licenses(token):
         try:
+            print("Starting mining_licenses method...")
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
 
             if not REDMINE_URL or not API_KEY:
+                print("Redmine URL or API Key is missing")
                 return None, "Redmine URL or API Key is missing"
 
             # Step 1: Extract user_id from the token
             user_id, error = MLOUtils.get_user_info_from_token(token)
             if not user_id:
+                print(f"Error extracting user_id: {error}")
                 return None, error
 
-            # Debugging: Print the user_id
             print(f"User ID from token: {user_id}")
 
-            # Step 2: Define query parameters for project_id=31 and tracker_id=7 (ML)
+            # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
-                "project_id": 31,
-                "tracker_id": 7  # ML tracker ID
+                "project_id": 1,
+                "tracker_id": 4  # ML tracker ID
             }
 
             headers = {
@@ -44,34 +46,27 @@ class MLOwnerService:
                 "X-Redmine-API-Key": API_KEY
             }
 
-            # Make the Redmine request
-            # response = requests.get(
-            #     f"{REDMINE_URL}/projects/gsmb/issues.json",
-            #     params=params,
-            #     headers=headers
-            # )
             limit = LimitUtils.get_limit()
+            print(f"Fetching issues with limit: {limit}")
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
+                f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
+
             # Check if the request was successful
             if response.status_code != 200:
+                print(f"Failed to fetch issues: {response.status_code} - {response.text}")
                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
 
             issues = response.json().get("issues", [])
-
-            # Debugging: Print the issues to see if there are any
-            print("Redmine Issues:", issues)
+            print(f"Fetched {len(issues)} issues")
 
             # Step 3: Filter the issues based on the logged-in user's user_id
             filtered_issues = [
                 issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
             ]
-
-            # Debugging: Print the filtered issues to verify the result
-            print("Filtered Issues:", filtered_issues)
+            print(f"Filtered {len(filtered_issues)} issues for user {user_id}")
 
             # Only return relevant issue details like subject, description, dates, etc.
             relevant_issues = [
@@ -82,19 +77,16 @@ class MLOwnerService:
                     "description": issue.get("description"),
                     "start_date": issue.get("start_date"),
                     "due_date": issue.get("due_date"),
-                    "done_ratio": issue.get("done_ratio"),
-                    "is_private": issue.get("is_private"),
-                    "estimated_hours": issue.get("estimated_hours"),
-                    "total_estimated_hours": issue.get("total_estimated_hours"),
                     "custom_fields": issue.get("custom_fields")
                 }
                 for issue in filtered_issues
             ]
 
-            # Return the relevant issue data
+            print("Returning relevant issues")
             return relevant_issues, None  # Returning filtered issues and no error
 
         except Exception as e:
+            print(f"Exception in mining_licenses: {str(e)}")
             return None, f"Server error: {str(e)}"
 
     # Home function (mining_homeLicenses)
