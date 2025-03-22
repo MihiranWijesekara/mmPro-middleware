@@ -65,8 +65,8 @@ class GeneralPublicService:
 
             headers = {"X-Redmine-API-Key": api_key}
 
-            # Fetch all TPL licenses (tracker_id = 8)
-            tpl_params = {"tracker_id": 8}
+            # Fetch all TPL licenses (tracker_id = 5)
+            tpl_params = {"tracker_id": 5}
             tpl_response = requests.get(f"{REDMINE_URL}/issues.json", params=tpl_params, headers=headers)
 
             if tpl_response.status_code != 200:
@@ -77,7 +77,7 @@ class GeneralPublicService:
 
             # Check if any TPL license matches the given lorry number (cf_13)
             tpl_license_exists = any(
-                any(cf["id"] == 13 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", []))
+                any(cf["id"] == 53 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", []))
                 for issue in tpl_issues
             )
 
@@ -85,36 +85,6 @@ class GeneralPublicService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-
-        
-    # @staticmethod
-    # def send_verification_code(phone):
-    #     try:
-    #         verification = client.verify \
-    #             .v2 \
-    #             .services(VERIFY_SERVICE_SID) \
-    #             .verifications \
-    #             .create(to=phone, channel='sms')
-
-    #         return True, verification.sid
-    #     except TwilioException as e:
-    #         return False, str(e)
-
-    # @staticmethod
-    # def verify_code(phone, code):
-    #     try:
-    #         verification_check = client.verify \
-    #             .v2 \
-    #             .services(VERIFY_SERVICE_SID) \
-    #             .verification_checks \
-    #             .create(to=phone, code=code)
-
-    #         if verification_check.status == 'approved':
-    #             return True, None
-    #         else:
-    #             return False, 'Invalid code'
-    #     except TwilioException as e:
-    #         return False, str(e)
 
     @staticmethod
     def generate_otp():
@@ -161,16 +131,15 @@ class GeneralPublicService:
     def create_complaint(phoneNumber, vehicleNumber):
         issue_data = {
                 'issue': {
-                    'project_id': 31,  
-                    'tracker_id': 26,  
+                    'project_id': 1,  
+                    'tracker_id': 6,  
                     'subject': "New Complaint",  
-                    'status_id': 11, 
+                    'status_id': 1, 
                     'priority_id': 2,  
-                    'assigned_to_id': 59,
                     'custom_fields': [
-                        {'id': 3, 'name': "Mobile Number", 'value': phoneNumber},
-                        {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
-                        {'id': 68, 'name': "Role", 'value': "General Public"}
+                        {'id': 66, 'name': "Mobile Number", 'value': phoneNumber},
+                        {'id': 53, 'name': "Lorry Number", 'value': vehicleNumber},
+                        {'id': 67, 'name': "Role", 'value': "Public"}
                     ]
                 }
             }
