@@ -138,3 +138,47 @@ def refresh_token():
         print(f"Error processing token: {e}")  # Log error internally
         return jsonify({"message": "Internal server error"}), 500
 
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """
+    Forgot Password Endpoint
+    - Validates the email.
+    - Calls the AuthService to handle the password reset process.
+    """
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'message': 'Email is required'}), 400
+
+    # Call the AuthService to handle the password reset process
+    result = AuthService.initiate_password_reset(email)
+
+    if result.get('error'):
+        return jsonify({'message': result['error']}), 400
+
+    return jsonify({'message': 'If the email exists, a reset link will be sent'}), 200
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Reset Password Endpoint
+    - Validates the reset token.
+    - Updates the user's password.
+    """
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('new_password')
+
+    if not token or not new_password:
+        return jsonify({'error': 'Token and new password are required'}), 400
+
+    # Call the AuthService to handle the password reset
+    result = AuthService.reset_password(token, new_password)
+
+    if not result.get('success'):
+        error_message = result.get('error', 'Failed to reset password')
+        return jsonify({'error': error_message}), 400
+
+    return jsonify({'message': 'Password updated successfully'}), 200
+

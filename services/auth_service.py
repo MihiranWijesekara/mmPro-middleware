@@ -5,12 +5,25 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from config import Config
 from cryptography.fernet import Fernet
+import uuid
+from datetime import datetime, timedelta
+import smtplib
+from email.mime.text import MIMEText
+from services.general_public_service import cache  # Import the existing cache instance
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
+REDMINE_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 REDMINE_ADMIN_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+logger.info(f"Redmine URL: {REDMINE_URL}")
+
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
     cipher = Fernet(ENCRYPTION_KEY)
@@ -34,7 +47,7 @@ class AuthService:
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
                 print(f"Checking project: {project_name}")
-                if project_name == "GSMB":
+                if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
                         gsm_project_role = roles[0].get('name')
@@ -75,7 +88,7 @@ class AuthService:
             users_response = requests.get(
                 f"{REDMINE_URL}/users.json",
                 params={"mail": email},
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
 
             if users_response.status_code != 200 or not users_response.json().get('users'):
@@ -86,7 +99,7 @@ class AuthService:
 
             user_details_response = requests.get(
                 f"{REDMINE_URL}/users/{user_id}.json",
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
 
             if user_details_response.status_code != 200:
@@ -100,8 +113,9 @@ class AuthService:
 
             # Get User Role from Redmine Memberships
             memberships_response = requests.get(
+              
                 f"{REDMINE_URL}/projects/GSMB/memberships.json",
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
 
             if memberships_response.status_code != 200:
@@ -147,7 +161,7 @@ class AuthService:
             users_response = requests.get(
                 f"{REDMINE_URL}/users.json",
                 params={"mail": email},
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
 
             if users_response.status_code != 200 or not users_response.json().get('users'):
@@ -158,7 +172,7 @@ class AuthService:
 
             user_details_response = requests.get(
                 f"{REDMINE_URL}/users/{user_id}.json",
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
             )
 
             if user_details_response.status_code != 200:
@@ -170,8 +184,10 @@ class AuthService:
                 return None, "API key not found for the user"
 
             memberships_response = requests.get(
+              
                 f"{REDMINE_URL}/projects/GSMB/memberships.json",
-                headers={"X-Redmine-API-Key": REDMINE_ADMIN_API_KEY}
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
+
             )
 
             if memberships_response.status_code != 200:
@@ -191,6 +207,143 @@ class AuthService:
 
         except Exception as e:
             return None, f"Error: {str(e)}"
+        
+    @staticmethod
+    def initiate_password_reset(email):
+        """
+        Initiates the password reset process.
+        - Checks if the email exists.
+        - Generates a reset token and stores it in the cache.
+        - Sends a reset email to the user.
+        """
+        # Check if the email exists in the system
+        user_exists = AuthService.check_user_by_email(email)
+        if not user_exists:
+            return {'error': 'If the email exists, a reset link will be sent'}
+
+        # Generate a unique password reset token
+        reset_token = str(uuid.uuid4())
+        expires_at = datetime.now() + timedelta(hours=1)  # Token expires in 1 hour
+
+        expires_in = (expires_at - datetime.now()).total_seconds()
+
+        # Store the token in the cache with a prefix
+        cache_key = f"reset_token:{reset_token}"
+        cache.set(cache_key, email, expires_in)
+
+        # Send the reset link to the user's email
+        reset_link = f"http://your-frontend/reset-password?token={reset_token}"
+        AuthService.send_reset_email(email, reset_link)
+
+        return {'message': 'Password reset initiated'}
+
+    @staticmethod
+    def check_user_by_email(email):
+        """
+        Checks if a user with the given email exists in Redmine.
+        """
+        # Redmine API endpoint for listing users
+        url = f"{REDMINE_URL}/users.json"
+        
+        # Query parameters to filter users by email
+        params = {
+            'key': REDMINE_API_KEY,
+            'name': email  # Redmine allows filtering by name or email
+        }
+        
+        try:
+            # Make a GET request to the Redmine API
+            response = requests.get(url, params=params)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            
+            # Parse the JSON response
+            users = response.json().get('users', [])
+            
+            # Check if any user matches the email
+            for user in users:
+                if user.get('mail') == email:
+                    return True
+            
+            # If no user matches, return False
+            return False
+        
+        except requests.exceptions.RequestException as e:
+            print(f"Error querying Redmine API: {e}")
+            return False
+
+    @staticmethod
+    def send_reset_email(email, reset_link):
+        """
+        Sends a password reset email to the user.
+        """
+        msg = MIMEText(f"Click the link to reset your password: {reset_link}")
+        msg['Subject'] = 'Password Reset Request'
+        msg['From'] = 'noreply@yourdomain.com'
+        msg['To'] = email
+
+        # Send the email (configure your SMTP server)
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login('insaf.ahmedh@gmail.com', 'ulge fzkp izhg idwf')
+                server.sendmail('insaf.ahmedh@gmail.com', [email], msg.as_string())
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+
+    @staticmethod
+    def reset_password(token, new_password):
+        """
+        Resets the user's password.
+        """
+        # Validate the token
+        cache_key = f"reset_token:{token}"
+        email = cache.get(cache_key)
+        print(email)
+
+        if not email:
+            return {'error': 'Invalid or expired token'}
+        
+        try:
+            users_response = requests.get(
+                f"{REDMINE_URL}/users.json",
+                params={"mail": email},
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
+            )
+            users_response.raise_for_status()  # Raise an exception for HTTP errors
+
+            users = users_response.json().get('users', [])
+            if not users:
+                return {'success': False, 'error': 'User not found in Redmine'}
+
+            user_id = users[0]['id']
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to fetch user details: {e}")
+            return {'success': False, 'error': 'Failed to fetch user details from Redmine'}
+
+        # Step 2: Update the user's password
+        update_url = f"{REDMINE_URL}/users/{user_id}.json"
+        headers = {
+            'X-Redmine-API-Key': REDMINE_API_KEY,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'user': {
+                'password': new_password
+            }
+        }
+
+        try:
+            response = requests.put(update_url, headers=headers, json=payload)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            print(f"Password updated successfully for user {email}")
+            return {'success': True}
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to update password: {e}")
+            return {'success': False, 'error': 'Failed to update password in Redmine'}
+        finally:
+            # Delete the token from the cache
+            cache.delete(cache_key)
+    
 
 
     # @staticmethod
