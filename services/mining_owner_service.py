@@ -2,7 +2,7 @@ import requests
 import os
 from dotenv import load_dotenv
 import json
-from datetime import datetime
+from datetime import date, timedelta , datetime 
 from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
@@ -67,20 +67,40 @@ class MLOwnerService:
                 issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
             ]
             print(f"Filtered {len(filtered_issues)} issues for user {user_id}")
+ 
+            # Step 4: Extract and format the required fields
+            relevant_issues = []
+            for issue in filtered_issues:
+                # Extract custom fields
+                custom_fields = issue.get("custom_fields", [])
+                custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
-            # Only return relevant issue details like subject, description, dates, etc.
-            relevant_issues = [
-                {
-                    "id": issue.get("id"),
-                    "subject": issue.get("subject"),
-                    "status": issue.get("status"),
-                    "description": issue.get("description"),
-                    "start_date": issue.get("start_date"),
-                    "due_date": issue.get("due_date"),
-                    "custom_fields": issue.get("custom_fields")
-                }
-                for issue in filtered_issues
-            ]
+                # Get required fields
+                license_number = issue.get("subject", "N/A")  # License number is in the "subject" field
+                owner_name = custom_fields_dict.get("Name of Applicant OR Company", "N/A")
+                location = custom_fields_dict.get("Name of village ", "N/A")
+                start_date = issue.get("start_date", "N/A")
+                due_date = issue.get("due_date", "N/A")
+                remaining_cubes = int(custom_fields_dict.get("Remaining", 0))
+
+                # Determine status
+                current_date = datetime.now().date()
+                due_date_obj = datetime.strptime(due_date, "%Y-%m-%d").date() if due_date != "N/A" else None
+
+                if due_date_obj and (current_date > due_date_obj or remaining_cubes <= 0):
+                    status = "Expired"
+                else:
+                    status = "Active"
+
+                # Append formatted issue data
+                relevant_issues.append({
+                    "License Number": license_number,
+                    "Owner Name": owner_name,
+                    "Location": location,
+                    "Start Date": start_date,
+                    "Due Date": due_date,
+                    "Status": status
+                })
 
             print("Returning relevant issues")
             return relevant_issues, None  # Returning filtered issues and no error
@@ -104,13 +124,10 @@ class MLOwnerService:
             if not user_id:
                 return None, error
 
-            # Debugging: Print the user_id
-            print(f"User ID from token: {user_id}")
-
-            # Step 2: Define query parameters for project_id=31 and tracker_id=7 (ML)
+            # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
-                "project_id": 31,
-                "tracker_id": 7  # ML tracker ID
+                "project_id": 1,
+                "tracker_id": 4  # ML tracker ID
             }
 
             headers = {
@@ -120,7 +137,7 @@ class MLOwnerService:
             # Make the Redmine request
             limit = LimitUtils.get_limit()
             response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
+                f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
                 headers=headers
             )
@@ -131,50 +148,53 @@ class MLOwnerService:
 
             issues = response.json().get("issues", [])
 
-            # Debugging: Print the issues to see if there are any
-            print("Redmine Issues:", issues)
-
             # Step 3: Filter the issues based on the logged-in user's user_id
             filtered_issues = [
                 issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
             ]
 
-            # Debugging: Print the filtered issues to verify the result
-            print("Filtered Issues:", filtered_issues)
+            filtered_issues_sorted = sorted(
+            filtered_issues,
+            key=lambda x: (
+                datetime.strptime(x.get("updated_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("updated_on") else datetime.min,
+                datetime.strptime(x.get("created_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("created_on") else datetime.min
+            ),
+            reverse=True
+            )
+            
+            relevant_issues = []
+            for issue in filtered_issues_sorted:
+                # Extract custom fields
+                custom_fields = issue.get("custom_fields", [])
+                custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
-            # Step 4: Further filter the issues based on the conditions:
-            # - Valid status (not "Expired", "Closed", etc.)
-            # - Sort by most recent due_date
-            # - Limit to 5 issues
+                # Get required fields
+                license_number = issue.get("subject", "N/A")
+                owner_name = custom_fields_dict.get("Name of Applicant OR Company", "N/A")
+                location = custom_fields_dict.get("Name of village ", "N/A")
+                start_date = issue.get("start_date", "N/A")
+                due_date = issue.get("due_date", "N/A")
+                remaining_cubes = int(custom_fields_dict.get("Remaining", 0))
 
-            valid_statuses = ["Valid"]  # Define valid statuses as per your requirements
-            valid_issues = [
-                issue for issue in filtered_issues
-                if issue.get("status", {}).get("name") in valid_statuses
-            ]
+                # Determine status
+                current_date = datetime.now().date()
+                due_date_obj = datetime.strptime(due_date, "%Y-%m-%d").date() if due_date != "N/A" else None
 
-            # Sort by due_date in descending order to get the most recent issues first
-            valid_issues_sorted = sorted(valid_issues, key=lambda x: datetime.strptime(x["due_date"], "%Y-%m-%d") if x.get("due_date") else datetime.min, reverse=True)
+                if due_date_obj and (current_date > due_date_obj or remaining_cubes <= 0):
+                    status = "Expired"
+                else:
+                    status = "Active"
 
-            # Limit to a maximum of 5 issues
-            top_5_issues = valid_issues_sorted[:5]
-
-            # Only return relevant issue details like subject, description, dates, etc.
-            relevant_issues = [
-                {
-                    "subject": issue.get("subject"),
-                    "status": issue.get("status"),
-                    "description": issue.get("description"),
-                    "start_date": issue.get("start_date"),
-                    "due_date": issue.get("due_date"),
-                    "done_ratio": issue.get("done_ratio"),
-                    "is_private": issue.get("is_private"),
-                    "estimated_hours": issue.get("estimated_hours"),
-                    "total_estimated_hours": issue.get("total_estimated_hours"),
-                    "custom_fields": issue.get("custom_fields")
-                }
-                for issue in top_5_issues
-            ]
+                # Append formatted issue data
+                relevant_issues.append({
+                    "License Number": license_number,
+                    "Owner Name": owner_name,
+                    "Location": location,
+                    "Start Date": start_date,
+                    "Due Date": due_date,
+                    "Remaining Cubes": remaining_cubes,
+                    "Status": status
+                })
 
             # Return the relevant issue data
             return relevant_issues, None  # Returning filtered issues and no error
@@ -183,153 +203,140 @@ class MLOwnerService:
             return None, f"Server error: {str(e)}"
 
     @staticmethod
-    def view_tpls(token):
+    def create_tpl(data, token):
         try:
+            # Get the Redmine URL from environment variables
             REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Redmine URL is not configured"
+
+            print("Redmine URL:", REDMINE_URL)
+
+            # Get the API key from the token
             API_KEY = JWTUtils.get_api_key_from_token(token)
+            if not API_KEY:
+                return None, "Invalid or missing API key"
 
-            if not REDMINE_URL or not API_KEY:
-                return None, "Redmine URL or API Key is missing"
+            print("API Key:", API_KEY)
 
-            # Step 1: Extract user_id from the token
-            user_id, error = MLOUtils.get_user_info_from_token(token)
-            if not user_id:
-                return None, error
+            # Fetch the current mining license issue to get Used and Remaining values
+            mining_license_number = data.get("mining_license_number")
+            if not mining_license_number:
+                return None, "Mining license number is required"
 
-            # Step 2: Define query parameters for project_id=31 and tracker_id=8 (TPL)
-            params = {
-                "project_id": 31,
-                "tracker_id": 8  # TPL tracker ID
-            }
-
+            # Define the Redmine API endpoint to fetch the mining license issue
+            mining_issue_url = f"{REDMINE_URL}/issues.json?subject={mining_license_number}"
             headers = {
+                "Content-Type": "application/json",
                 "X-Redmine-API-Key": API_KEY
             }
 
-            # Make the Redmine request
-            limit = LimitUtils.get_limit()
-            response = requests.get(
-                f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}",
-                params=params,
-                headers=headers
-            )
+            # Fetch the mining license issue
+            mining_issue_response = requests.get(mining_issue_url, headers=headers)
+            if mining_issue_response.status_code != 200:
+                return None, "Failed to fetch mining license issue"
+            
+            # Log the Redmine API response for debugging
+            mining_issue_data = mining_issue_response.json()
+            print("Mining Issue Response:", mining_issue_data)
+            
+            mining_issues = mining_issue_data.get("issues", [])
+            if not mining_issues:
+                return None, "Mining license issue not found"
+            
+            # Get the first matching issue (assuming unique subject)
+            mining_issue = mining_issues[0]
+            mining_issue_id = mining_issue.get("id")
+            if not mining_issue_id:
+                return None, "Mining license issue ID not found"
+            
+            # Extract current Used and Remaining values
+            custom_fields = mining_issue.get("custom_fields", [])
+            used_field = next((field for field in custom_fields if field.get("name") == "Used"), None)
+            remaining_field = next((field for field in custom_fields if field.get("name") == "Remaining"), None)
+             
+            if not used_field or not remaining_field:
+                return None, "Used or Remaining fields not found in the mining license issue"
 
-            # Check if the request was successful
-            if response.status_code != 200:
-                return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
+            current_used = int(used_field.get("value", 0))
+            current_remaining = int(remaining_field.get("value", 0))
+            cubes = int(data.get("cubes", 0))
 
-            issues = response.json().get("issues", [])
+            # Update Used and Remaining values
+            new_used = current_used + cubes
+            new_remaining = current_remaining - cubes
 
-            # Filter the issues based on the user_id, if any
-            filtered_issues = [
-                issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
-            ]
+            if new_remaining < 0:
+                return None, "Insufficient remaining cubes"
 
-            # Debugging: Print the filtered issues to verify the result
-            print("Filtered Issues:", filtered_issues)
-
-            return filtered_issues, None  # Returning filtered issues and no error
-
-        except Exception as e:
-            return None, f"Server error: {str(e)}"
-
-
-    @staticmethod
-    def create_tpl(data, token):
-        # print('----------------------------tpl data-----------------------------')
-        # print(data)
-        try:
-            REDMINE_URL = os.getenv("REDMINE_URL")
-            # Extract the user-specific API key from the token
-            api_key = JWTUtils.get_api_key_from_token(token)
-
-            # Check if Redmine URL and API Key exist
-            if not REDMINE_URL or not api_key:
-                return None, "Redmine URL or API Key is missing"
-
-            # Ensure the API token is present before proceeding
-            if not api_key:
-                return None, "API Token is required to create the issue"
-
-
-            headers = {
-                "X-Redmine-API-Key": api_key,  # Include the token for authorization
-                "Content-Type": "application/json"
+            # Prepare payload to update the mining license issue
+            update_payload = {
+                "issue": {
+                    "custom_fields": [
+                        {"id": used_field.get("id"), "value": str(new_used)},
+                        {"id": remaining_field.get("id"), "value": str(new_remaining)}
+                    ]
+                }
             }
-            print("------------------------------------------------")
-            print(data)
-            print(json.dumps(data, indent=4))
-            # Sending POST request to Redmine to create the issue
-            response = requests.post(
-                f"{REDMINE_URL}/issues.json",
-                json=data,
-                headers=headers
-            )
+            # Log the update payload for debugging
+            print("Update Payload:", update_payload)
 
-            # Check if the response is successful
-            if response.status_code != 201:
-                return None, f"Failed to create issue: {response.status_code} - {response.text}"
+            # Send a PUT request to update the mining license issue
+            update_url = f"{REDMINE_URL}/issues/{mining_issue_id}.json"
+            update_response = requests.put(update_url, json=update_payload, headers=headers)
+            print("Mining License id url:", update_url)
+             # Log the Redmine API response for debugging
+            print("Update Response Status Code:", update_response.status_code)
+            # print("Update Response Body:", update_response.json())  
 
-            issue = response.json().get("issue", {})
-            return issue, None  # Returning created issue and no error
+            if update_response.status_code != 204:
+                return None, "Failed to update mining license issue"
+
+            # Define the Redmine API endpoint for creating the TPL issue
+            REDMINE_API_URL = f"{REDMINE_URL}/issues.json"
+
+            # Prepare the payload for the TPL request
+            payload = {
+                "issue": {
+                    "project_id": 1,  # Replace with actual project ID
+                    "tracker_id": 5,  # TPL tracker ID
+                    "status_id": 8,   # Active status
+                    "priority_id": 2,
+                    "subject": "TPL",
+                    "start_date": data.get("start_date", date.today().isoformat()),
+                    "due_date": data.get("due_date", (date.today() + timedelta(days=1)).isoformat()),
+                    "custom_fields": [
+                        {"id": 53, "name": "Lorry Number", "value": data.get("lorry_number", "")},
+                        {"id": 54, "name": "Driver Contact", "value": data.get("driver_contact", "")},
+                        {"id": 55, "name": "Route 01", "value": data.get("route_01", "")},
+                        {"id": 56, "name": "Route 02", "value": data.get("route_02", "")},
+                        {"id": 57, "name": "Route 03", "value": data.get("route_03", "")},
+                        {"id": 58, "name": "Cubes", "value": str(cubes)},
+                        {"id": 59, "name": "Mining License Number", "value": mining_license_number},
+                        {"id": 68, "name": "Destination", "value": data.get("destination", "")}
+                    ]
+                }
+            }
+
+            response = requests.post(REDMINE_API_URL, json=payload, headers=headers)
+
+            print("TPL Issue Creation Response Status Code:", response.status_code)
+            print("TPL Issue Creation Response Body:", response.text)  # Debugging line
+
+            # Check if the response is empty before parsing as JSON
+            if response.status_code == 201:
+                if response.text.strip():  # Ensure there is a response body
+                    return response.json(), None
+                else:
+                    return {"message": "TPL issue created, but Redmine returned an empty response"}, None
+            else:
+                return None, response.text or "Failed to create TPL issue"
+
 
         except Exception as e:
-            return None, f"Server error: {str(e)}"
-    
-    
-    # @staticmethod
-    # def update_issue(issue_id, data):
-    #     try:
-    #         REDMINE_URL = os.getenv("REDMINE_URL")
-    #         API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
-    #         # print("View TPLs")
-    #         # print(REDMINE_URL)
-    #         # print(API_KEY)
+            return None, str(e)
 
-    #         if not REDMINE_URL or not API_KEY:
-    #             return None, "Redmine URL or API Key is missing"
-    #         headers = {
-    #             "X-Redmine-API-Key": API_KEY,  # Include the token for authorization
-    #             "Content-Type": "application/json"
-    #         }
-
-    #         # print("------------------------------------------------")
-    #         # print("Request Payload:", data)
-    #         # print("------------------------------------------------")
-    #         # print('\n\n\n\n\n')
-    #         # print("data payload", json.dumps(data))
-    #         # print('Headers', headers)
-    #         url = f"{REDMINE_URL}/issues/{issue_id}.json"
-    #         # print("URL:", url)
-    #         response = requests.put(
-    #             url,
-    #             json = data,  # Ensure correct JSON structure
-    #             headers=headers
-    #         )
-
-    #         # print("Response Status Code:", response.status_code)
-    #         # print("Response Headers:", response.headers)
-
-    #         # Check if response is empty (204 No Content)
-    #         if response.status_code == 204:
-    #             return {"message": "Issue updated successfully, but no content returned"}, None
-
-    #         # If status is not OK, return the error message
-    #         if response.status_code != 200:
-    #             return None, f"Failed to update issue: {response.status_code} - {response.text}"
-
-    #         # Attempt to parse the JSON response
-    #         try:
-    #             issue = response.json().get("issue", {})
-    #             return issue, None
-    #         except json.JSONDecodeError:
-    #             return None, "Invalid JSON response from server"
-
-    #     except Exception as e:
-    #         return None, f"Server error: {str(e)}"
-        
-    #     # Service function to update an issue
-    # @staticmethod
+   
     def update_issue(issue_id, data):
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
@@ -378,71 +385,6 @@ class MLOwnerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
 
-
-
-    @staticmethod
-    def is_valid_license(issue):
-        """
-        Check if the license is valid based on the given rules:
-        - Due date is not exceeded today
-        - Remaining should be > 0
-        - Status should be either Active or Valid
-        """
-        # Check the status
-        status = issue.get("status", {}).get("name", "")
-        if status not in ["Active", "Valid"]:
-            return False
-
-        # Check if the due date is not exceeded (today or in the future)
-        due_date_str = issue.get("due_date", "")
-        if not due_date_str:
-            return False
-        try:
-            due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-        except ValueError:
-            return False  # Invalid date format
-        
-        today = datetime.today().date()
-        if due_date.date() < today:
-            return False  # Due date is exceeded
-
-        # Check if remaining is greater than 0
-        remaining = next((field['value'] for field in issue.get('custom_fields', []) if field['name'] == 'Remaining'), None)
-        if remaining is None or int(remaining) <= 0:
-            return False  # Remaining must be greater than 0
-        
-        return True
-    
-    # @staticmethod
-    # def ml_detail(issue_id, token):
-    #     api_key = JWTUtils.get_api_key_from_token(token)
-    #     try:
-    #         REDMINE_URL = os.getenv("REDMINE_URL")
-
-    #         if not REDMINE_URL or not api_key:
-    #             return None, "Redmine URL or API Key is missing"
-    #         headers = {
-    #             "X-Redmine-API-Key": api_key,  # Include the token for authorization
-    #             "Content-Type": "application/json"
-    #         }
-    #         url = f"{REDMINE_URL}/issues/{issue_id}.json"
-    #         print("URL:", url)
-    #         response = requests.get(
-    #             url,  # Ensure correct JSON structure
-    #             headers=headers
-    #         )
-
-    #         if response.status_code != 200:
-    #             return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
-
-    #         issue = response.json().get("issue", {})
-
-
-    #         return issue, None  # Returning filtered issues and no error
-
-    #     except Exception as e:
-    #         return None, f"Server error: {str(e)}"
-    
     @staticmethod
     def ml_detail(l_number, token):
         api_key = JWTUtils.get_api_key_from_token(token)
@@ -458,7 +400,7 @@ class MLOwnerService:
                 "Content-Type": "application/json"
             }
             limit = LimitUtils.get_limit()
-            url = f"{REDMINE_URL}/projects/gsmb/issues.json?offset=0&limit={limit}"
+            url = f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}"
             # print(f"Requesting: {url}")
 
             response = requests.get(url, headers=headers)
