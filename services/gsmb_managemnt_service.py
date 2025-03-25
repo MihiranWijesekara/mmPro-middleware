@@ -559,6 +559,14 @@ class GsmbManagmentService:
 
                 offset += len(memberships)
 
+                total_count = (
+                    counts["licenceOwner"]
+                    + counts["activeGSMBOfficers"]
+                    + counts["policeOfficers"]
+                    + counts["public"]
+                )
+                counts["total_count"] = total_count
+
             return counts, None
 
         except Exception as e:
