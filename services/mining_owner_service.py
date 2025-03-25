@@ -1,3 +1,4 @@
+from typing import Dict, List, Optional, Tuple
 import requests
 import os
 from dotenv import load_dotenv
@@ -7,9 +8,6 @@ from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
 from utils.limit_utils import LimitUtils
-
-
-
 
 load_dotenv()
 
@@ -169,8 +167,9 @@ class MLOwnerService:
                 custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
                 # Get required fields
-                license_number = issue.get("subject", "N/A")
-                owner_name = custom_fields_dict.get("Name of Applicant OR Company", "N/A")
+                license_number = issue.get("subject", "N/A")  
+
+                owner_name = issue.get("Name of Applicant OR Company", "N/A")
                 location = custom_fields_dict.get("Name of village ", "N/A")
                 start_date = issue.get("start_date", "N/A")
                 due_date = issue.get("due_date", "N/A")
@@ -449,7 +448,111 @@ class MLOwnerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+     
 
-   
+    @staticmethod
+    def view_tpls(token: str, mining_license_number: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
+        try:
+            print(f"Starting view_tpls for license: {mining_license_number}")
+        
+            if not mining_license_number or not mining_license_number.strip():
+                return None, "Valid mining license number is required"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+        
+            if not REDMINE_URL or not API_KEY:
+                return None, "System configuration error - missing Redmine URL or API Key"
+
+            user_id, error = MLOUtils.get_user_info_from_token(token)
+            if not user_id:
+                return None, f"Authentication error: {error}"
+
+            params = {
+                "project_id": 1,
+                "tracker_id": 5,
+                "cf_59": mining_license_number.strip()
+            }
+
+            headers = {
+                "Content-Type": "application/json",
+                "X-Redmine-API-Key": API_KEY
+            }
+
+        
+            limit = LimitUtils.get_limit()
+            response = requests.get(
+                f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
+                params=params,
+                headers=headers
+            )
+
+            if response.status_code != 200:
+                return None, f"Redmine API error ({response.status_code}): {response.text}"
+
+            issues = response.json().get("issues", [])
+            tpl_list = []
+            current_date = datetime.now().date()
+            for issue in issues:
+                try:
+                    custom_fields = {
+                        field["name"]: field["value"] 
+                        for field in issue.get("custom_fields", [])
+                    }
+                
+                    if custom_fields.get("Mining License Number") != mining_license_number:
+                        continue
+
+                    start_date = None
+                    due_date = None
+                    try:
+                        if issue.get("start_date"):
+                            start_date = datetime.strptime(issue["start_date"], "%Y-%m-%d").date()
+                        if issue.get("due_date"):
+                            due_date = datetime.strptime(issue["due_date"], "%Y-%m-%d").date()
+                    except ValueError as e:
+                        print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
+                        continue
+
+                    status = "Unknown"
+                    if start_date and due_date:
+                        if current_date < start_date:
+                            status = "Pending"
+                        elif start_date <= current_date <= due_date:
+                            status = "Active"
+                        elif current_date > due_date:
+                            status = "Expired"
+
+                    tpl_data = {
+
+                        "tpl_id": issue.get("id"),
+                        "license_number": mining_license_number,
+                        "subject": issue.get("subject", ""),
+                        "start_date": issue.get("start_date"),
+                        "due_date": issue.get("due_date"),
+                        "status": status,
+                        "lorry_number": custom_fields.get("Lorry Number"),
+                        "driver_contact": custom_fields.get("Driver Contact"),
+                       "destination": custom_fields.get("Destination"),
+                        "Route_01": custom_fields.get("Route 01"),
+                        "Route_02": custom_fields.get("Route 02"),
+                        "Route_03": custom_fields.get("Route 03"),
+                        "cubes": custom_fields.get("Cubes"),  
+                        "Create Date": issue.get("created_on", ""),    
+                    }
+                
+                    tpl_list.append(tpl_data)
+                
+                except Exception as e:
+                    print(f"Error processing issue {issue.get('id')}: {str(e)}")
+                    continue
+
+            return tpl_list, None
+
+        except requests.exceptions.RequestException as e:
+            return None, f"Network error: {str(e)}"
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return None, f"Processing error: {str(e)}"   
 
     
