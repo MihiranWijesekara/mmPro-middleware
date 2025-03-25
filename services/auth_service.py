@@ -16,6 +16,7 @@ load_dotenv()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
 REDMINE_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
     cipher = Fernet(ENCRYPTION_KEY)
@@ -38,8 +39,7 @@ class AuthService:
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
-                print(f"Checking project: {project_name}")
-                if project_name == "GSMB":
+                if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
                         gsm_project_role = roles[0].get('name')

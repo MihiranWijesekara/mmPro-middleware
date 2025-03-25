@@ -1,5 +1,11 @@
 __pycache__/
 *.pyc
 otp_cache/cache.db
+<<<<<<< Updated upstream
 
 
+=======
+otp_cache/cache.db-shm
+otp_cache/cache.db-wal
+.env
+>>>>>>> Stashed changes
