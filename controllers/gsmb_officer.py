@@ -10,23 +10,23 @@ gsmb_officer_bp = Blueprint('gsmb_officer', __name__)
 
 
 
-@gsmb_officer_bp.route('/gsmb-issue', methods=['GET'])
-@check_token
-@role_required(['GSMBOfficer'])
-def get_mining_licenses():
-    # Get the token from the request header
-    token = request.headers.get('Authorization')
+# @gsmb_officer_bp.route('/gsmb-issue', methods=['GET'])
+# @check_token
+# @role_required(['GSMBOfficer'])
+# def get_mining_licenses():
+#     # Get the token from the request header
+#     token = request.headers.get('Authorization')
 
-    if not token:
-        return jsonify({"error": "Authorization token is missing"}), 400
+#     if not token:
+#         return jsonify({"error": "Authorization token is missing"}), 400
 
-    # Pass the token to the service method
-    issues, error = GsmbOfficerService.get_Issues_Data(token)
+#     # Pass the token to the service method
+#     issues, error = GsmbOfficerService.get_Issues_Data(token)
     
-    if error:
-        return jsonify({"error": error}), 500
+#     if error:
+#         return jsonify({"error": error}), 500
 
-    return jsonify({"mining_licenses": issues})
+#     return jsonify({"mining_licenses": issues})
 
 
 
@@ -254,37 +254,244 @@ def view_tpls():
 
 
 
-           # Get MLowners
+           # OLD CODE Get MLowners
+# @gsmb_officer_bp.route('/get-mlowners', methods=['GET'])
+# @check_token
+# @role_required(['GSMBOfficer'])
+# def get_mlowners():
+#     try:
+#         # Get the token from the request header
+#         token = request.headers.get('Authorization')
+
+#         if not token:
+#             return jsonify({"error": "Authorization token is missing"}), 400
+
+#         # pass the token and payload to the service method
+#         mlowners_details, error = GsmbOfficerService.get_mlowners(token)
+
+#         if error:
+#             return jsonify({"error": error}), 500
+        
+#         # For each ML Owner, get their associated licenses
+#         for owner in mlowners_details:
+#             user_id = owner['id']
+#             licenses, error = GsmbOfficerService.get_user_licenses(user_id, token)
+#             if error:
+#                 return jsonify({"error": error}), 500
+#             owner['licenses'] = licenses
+
+#         return jsonify({"success": True, "data": mlowners_details}), 201
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500       
+# 
+# 
+
 @gsmb_officer_bp.route('/get-mlowners', methods=['GET'])
 @check_token
 @role_required(['GSMBOfficer'])
 def get_mlowners():
     try:
-        # Get the token from the request header
         token = request.headers.get('Authorization')
 
         if not token:
             return jsonify({"error": "Authorization token is missing"}), 400
 
-        # pass the token and payload to the service method
         mlowners_details, error = GsmbOfficerService.get_mlowners(token)
 
         if error:
             return jsonify({"error": error}), 500
-        
-        # For each ML Owner, get their associated licenses
-        for owner in mlowners_details:
-            user_id = owner['id']
-            licenses, error = GsmbOfficerService.get_user_licenses(user_id, token)
-            if error:
-                return jsonify({"error": error}), 500
-            owner['licenses'] = licenses
 
-        return jsonify({"success": True, "data": mlowners_details}), 201
+        return jsonify({"success": True, "data": mlowners_details}), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500        
+        return jsonify({"error": str(e)}), 500
+
+
+@gsmb_officer_bp.route('/get-mlowners/individual', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_individual_mlowners():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        all_mlowners, error = GsmbOfficerService.get_mlowners(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        # Function to extract field value by name
+        def get_field_value(custom_fields, field_name):
+            for field in custom_fields:
+                if field["name"] == field_name:
+                    return field["value"]
+            return ""
+
+        # Filter only individuals and format response
+        individual_mlowners = []
+        for owner in all_mlowners:
+            if any(field["id"] == 41 and field["value"] for field in owner.get("custom_fields", [])):  # Check if NIC exists
+                formatted_owner = {
+                    "login": owner.get("login", ""),
+                    "first_name": owner.get("firstname", "").strip(),
+                    "last_name": owner.get("lastname", "").strip(),
+                    "email": owner.get("mail", ""),
+                    "national_identity_card": get_field_value(owner.get("custom_fields", []), "National Identity Card"),
+                    "address": get_field_value(owner.get("custom_fields", []), "Address"),
+                    "nationality": get_field_value(owner.get("custom_fields", []), "Nationality"),
+                    "mobile_number": get_field_value(owner.get("custom_fields", []), "Mobile Number"),
+                    "employment_name_of_employer": get_field_value(owner.get("custom_fields", []), "Employment ,Name of employer"),
+                    "place_of_business": get_field_value(owner.get("custom_fields", []), "Place of Business"),
+                    "residence": get_field_value(owner.get("custom_fields", []), "Residence"),
+                }
+                individual_mlowners.append(formatted_owner)
+
+        return jsonify({"success": True, "data": individual_mlowners}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@gsmb_officer_bp.route('/get-mlowners/company', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_company_mlowners():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        all_mlowners, error = GsmbOfficerService.get_mlowners(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        # Function to extract field value by name
+        def get_field_value(custom_fields, field_name):
+            for field in custom_fields:
+                if field["name"] == field_name:
+                    return field["value"]
+            return ""
+
+        # Filter only company owners and format response
+        company_mlowners = []
+        for owner in all_mlowners:
+            if any(field["id"] in [47, 49] and field["value"] for field in owner.get("custom_fields", [])):  
+                formatted_owner = {
+                    "login": owner.get("login", ""),
+                    "first_name": owner.get("firstname", "").strip(),
+                    "last_name": owner.get("lastname", "").strip(),
+                    "country_of_incorporation": get_field_value(owner.get("custom_fields", []), "Country of Incorporation"),
+                    "head_office": get_field_value(owner.get("custom_fields", []), "Head Office"),
+                    "address_of_registered_company": get_field_value(owner.get("custom_fields", []), "Address of Registered Company"),
+                    "capitalization": get_field_value(owner.get("custom_fields", []), "Capitalization"),
+                    "articles_of_association": get_field_value(owner.get("custom_fields", []), "Articles of Association"),
+                    "annual_reports": get_field_value(owner.get("custom_fields", []), "Annual Reports"),
+                    "mobile_number": get_field_value(owner.get("custom_fields", []), "Mobile Number"),
+                }
+                company_mlowners.append(formatted_owner)
+
+        return jsonify({"success": True, "data": company_mlowners}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@gsmb_officer_bp.route('/get-tpls', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_tpls():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Fetch TPLs from the service
+        tpls, error = GsmbOfficerService.get_tpls(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": tpls}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
-    
+@gsmb_officer_bp.route('/get-mining-licenses', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_mining_licenses():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Fetch Mining Licenses from the service
+        mining_licenses, error = GsmbOfficerService.get_mining_licenses(token)
+        
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": mining_licenses}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gsmb_officer_bp.route('/get-mining-license-counts', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_mining_license_counts():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Fetch mining license counts
+        license_counts, error = GsmbOfficerService.get_mining_license_counts(token)
+        
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": license_counts}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@gsmb_officer_bp.route('/get-distance', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def calculate_distance():
+    """
+    Endpoint to calculate the distance between two cities.
+    Expects a JSON payload with 'city1' and 'city2'.
+    """
+    # Get JSON data from the request
+    data = request.json
+    # Validate input
+    city1 = data.get('city1')
+    city2 = data.get('city2')
+
+    if not city1 or not city2:
+        return jsonify({
+            "success": False,
+            "error": "Both 'city1' and 'city2' are required"
+        }), 400
+
+    # Call the service to calculate the distance
+    result = GsmbOfficerService.calculate_distance(city1, city2)
+
+    # Return the result
+    if result['success']:
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
 
     
           
