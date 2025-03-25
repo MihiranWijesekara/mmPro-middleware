@@ -33,51 +33,6 @@ def get_mining_licenses():
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}, 500
 
-# POST route for /create-tpl 
-# @mining_owner_bp.route('/create-tpl', methods=['POST'])
-# @check_token
-# @role_required(['MLOwner'])
-# def create_tpl():
-#     try:
-#         # Check if the Authorization token is present in the request
-#         auth_header = request.headers.get('Authorization')
-#         if not auth_header:
-#             return jsonify({"error": "Authorization token is missing"}), 401
-        
-#         # Check if the token starts with 'Bearer ' (you can also validate it further here if needed)
-#         if not auth_header.startswith('Bearer '):
-#             return jsonify({"error": "Invalid token format. Expected 'Bearer <token>'"}), 401
-        
-#         # Extract the token from the header
-#         token = auth_header.split(' ')[1]
-
-#         # Now validate the token, you can add your custom token validation logic here
-#         # For simplicity, we will assume the token is valid if it's present
-#         if not token:  # You can add further validation logic here
-#             return jsonify({"error": "Invalid or missing token"}), 401
-
-#         # Get JSON data from the request
-#         data = request.get_json()
-#         print("Data received")
-#         print(data)
-
-#         # Check if data is valid
-#         if not data:
-#             return jsonify({"error": "No data provided in the request body"}), 400
-        
-
-#         # Call the create_tpl method with the provided 'data'
-#         issue, error = MLOwnerService.create_tpl(data, auth_header)
-
-#         if error:
-#             return jsonify({"error": error}), 400  # Return error message if something went wrong
-
-#         return jsonify({"issue": issue}), 200  # Return created issue if successful
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500  # Return server error message
-
-
 @mining_owner_bp.route('/create-tpl', methods=['POST'])
 @check_token
 @role_required(['MLOwner'])
