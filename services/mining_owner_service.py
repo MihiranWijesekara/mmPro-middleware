@@ -14,6 +14,8 @@ from utils.limit_utils import LimitUtils
 load_dotenv()
 
 class MLOwnerService:
+
+    ORS_API_KEY = os.getenv("ORS_API_KEY")
     
 
     @staticmethod
@@ -217,7 +219,7 @@ class MLOwnerService:
             if not API_KEY:
                 return None, "Invalid or missing API key"
 
-            print("API Key:", API_KEY)
+            # print("API Key:", API_KEY)
 
             # Fetch the current mining license issue to get Used and Remaining values
             mining_license_number = data.get("mining_license_number")
@@ -295,6 +297,18 @@ class MLOwnerService:
             # Define the Redmine API endpoint for creating the TPL issue
             REDMINE_API_URL = f"{REDMINE_URL}/issues.json"
 
+                    # Extract route_01 and destination for time calculation
+            route_01 = data.get("route_01", "")
+            destination = data.get("destination", "")
+
+            # Calculate estimated time between route_01 and destination
+            time_result = MLOwnerService.calculate_time(route_01, destination)
+            print(time_result)
+            if not time_result.get("success"):
+                return None, time_result.get("error")
+
+            time_hours = time_result.get("time_hours", 0)
+
             # Prepare the payload for the TPL request
             payload = {
                 "issue": {
@@ -304,7 +318,7 @@ class MLOwnerService:
                     "priority_id": 2,
                     "subject": "TPL",
                     "start_date": data.get("start_date", date.today().isoformat()),
-                    "due_date": data.get("due_date", (date.today() + timedelta(days=1)).isoformat()),
+                    "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
                     "custom_fields": [
                         {"id": 53, "name": "Lorry Number", "value": data.get("lorry_number", "")},
                         {"id": 54, "name": "Driver Contact", "value": data.get("driver_contact", "")},
@@ -335,6 +349,68 @@ class MLOwnerService:
 
         except Exception as e:
             return None, str(e)
+        
+    @staticmethod
+    def calculate_time(city1, city2):
+        """
+        Calculate the distance between two cities using OpenRouteService API and return the time in hours.
+
+        Args:
+            city1 (str): Name of the first city.
+            city2 (str): Name of the second city.
+
+        Returns:
+            dict: A dictionary containing the time in hours or an error message.
+        """
+        try:
+            # Step 1: Geocode cities to get coordinates
+            def geocode_location(city_name):
+                print("first request ins")
+                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
+                response_first = requests.get(url, timeout=1)
+                response = response_first.json()        
+                if response:
+                    lat = float(response[0]['lat'])
+                    lon = float(response[0]['lon'])
+                    print(lat, lon)
+                    return lon, lat  # Return as [longitude, latitude]
+                else:
+                    raise ValueError(f"Location '{city_name}' not found")
+
+            # Geocode both cities
+            coord1 = geocode_location(city1)
+            coord2 = geocode_location(city2)
+
+            print("second request")
+
+            # Step 2: Calculate distance using OpenRouteService
+            url = "https://api.openrouteservice.org/v2/directions/driving-car"
+            headers = {
+                "Authorization": MLOwnerService.ORS_API_KEY,
+                "Content-Type": "application/json"
+            }
+            body = {
+                "coordinates": [coord1, coord2],
+                "units": "km"
+            }
+            response = requests.post(url, headers=headers, json=body).json()
+
+            # Extract distance from the response
+            distance_km = response['routes'][0]['summary']['distance']
+
+            # Calculate the time in hours: (distance / 30 km/h) + 2 hours
+            time_hours = (distance_km / 30) + 2
+
+            # Return the time in hours
+            return {
+                "success": True,
+                "city1": city1,
+                "city2": city2,
+                "time_hours": round(time_hours, 2)
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 
    
     def update_issue(issue_id, data):
