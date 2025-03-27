@@ -232,10 +232,10 @@ class AuthService:
         cache.set(cache_key, email, expires_in)
 
         # Send the reset link to the user's email
-        reset_link = f"http://your-frontend/reset-password?token={reset_token}"
+        reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
         AuthService.send_reset_email(email, reset_link)
 
-        return {'message': 'Password reset initiated'}
+        return {'message': 'Password reset initiated'} 
 
     @staticmethod
     def check_user_by_email(email):
