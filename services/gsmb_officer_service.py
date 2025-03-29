@@ -9,8 +9,6 @@ from flask import request
 
 from utils.limit_utils import LimitUtils
 
-
-
 load_dotenv()
 
 class GsmbOfficerService:
@@ -90,7 +88,6 @@ class GsmbOfficerService:
             if not user_api_key:
                 return None, "Invalid or missing API key in the token"
 
-            # 🌐 Get Redmine URL and Admin API key
             REDMINE_URL = os.getenv("REDMINE_URL")
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
@@ -105,7 +102,6 @@ class GsmbOfficerService:
             if response.status_code != 200:
                 return None, f"Failed to fetch TPL issues: {response.status_code} - {response.text}"
 
-            # 🛠️ Process the response
             issues = response.json().get("issues", [])
             formatted_tpls = []
 
@@ -115,17 +111,16 @@ class GsmbOfficerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "author": issue.get("author", {}).get("name"),
+                    "tracker": issue.get("tracker", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
                     "start_date": issue.get("start_date"),
                     "due_date": issue.get("due_date"),
                     "lorry_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Number"),
                     "driver_contact": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Driver Contact"),
-                    "route_01": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 01"),
-                    "route_02": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 02"),
-                    "route_03": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 03"),
                     "cubes": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Cubes"),
                     "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     "destination": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Destination"),
+                    "lorry_driver_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Driver Name"),
                 
                 }
                 formatted_tpls.append(formatted_tpl)
