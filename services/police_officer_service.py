@@ -20,7 +20,7 @@ class PoliceOfficerService:
 
             headers = {"X-Redmine-API-Key": API_KEY}
 
-            tpl_params = {"tracker_id": 8}
+            tpl_params = {"tracker_id": 5}
             tpl_response = requests.get(f"{REDMINE_URL}/issues.json", params=tpl_params, headers=headers)
 
             if tpl_response.status_code != 200:
@@ -30,23 +30,27 @@ class PoliceOfficerService:
 
             lorry_number_lower = lorry_number.lower()
 
-            tpl_license = next((issue for issue in tpl_issues if any(
-                cf["id"] == 13 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", [])
-            )), None)
+            tpl_license = next(
+            (issue for issue in tpl_issues if any(
+                cf["id"] == 53 and str(cf.get("value", "")).lower() == lorry_number_lower 
+                for cf in issue.get("custom_fields", [])
+            )),
+            None
+            )
 
             if not tpl_license:
                 return None, "No TPL with this lorry number"
 
             tpl_data = {
-                "loadNumber": tpl_license["id"],  # Load number
-                "capacity": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 15), None),
-                "destination": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 12), None),
-                "start": tpl_license.get("start_date"),
-                "dueDate": tpl_license.get("due_date")
+                #"loadNumber": tpl_license["id"],  # Load number
+                "Cubes": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 58), None),
+                "Destination": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 68), None),
+             #   "start": tpl_license.get("start_date"),
+              #  "dueDate": tpl_license.get("due_date")
             }
 
-            # Fetch all Mining Licenses (tracker_id = 7)
-            ml_params = {"tracker_id": 7}
+            # Fetch all Mining Licenses (tracker_id = 4)
+            ml_params = {"tracker_id": 4}
             ml_response = requests.get(f"{REDMINE_URL}/issues.json", params=ml_params, headers=headers)
 
             if ml_response.status_code != 200:
@@ -56,7 +60,7 @@ class PoliceOfficerService:
 
            # Find the corresponding Mining License based on the license number
             mining_license = next((issue for issue in ml_issues if issue["subject"] == next(
-            (cf["value"] for cf in tpl_license.get("custom_fields", []) if cf["id"] == 8), None)), None)
+            (cf["value"] for cf in tpl_license.get("custom_fields", []) if cf["id"] == 59), None)), None)
 
             if not mining_license:
                 return None, "No matching Mining License found"
@@ -64,9 +68,10 @@ class PoliceOfficerService:
             # Extract required Mining License details
             mining_data = {
                 "licenseNumber": mining_license["subject"],
-                "expires": mining_license.get("due_date"),
-                "owner": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 2), None),
-                "location": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 11), None),
+                "owner": mining_license["author"],
+               # "expires": mining_license.get("due_date"),
+               # "owner": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 2), None),
+               # "location": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 11), None),
             }
 
             # Combine results
