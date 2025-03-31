@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import date, timedelta , datetime 
+from services.general_public_service import GeneralPublicService
 from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
@@ -213,6 +214,15 @@ class MLOwnerService:
 
             print("Redmine URL:", REDMINE_URL)
 
+            # First check if lorry already has an active TPL license
+            lorry_number = data.get("lorry_number")
+            if lorry_number:
+                is_valid, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
+            if error:
+                return None, f"Error checking lorry license status: {error}"
+            if is_valid:
+                return None, "This lorry already has an active Transport License"
+
             # Get the API key from the token
             API_KEY = JWTUtils.get_api_key_from_token(token)
             if not API_KEY:
@@ -317,7 +327,8 @@ class MLOwnerService:
                     "priority_id": 2,
                     "subject": "TPL",
                     "start_date": data.get("start_date", date.today().isoformat()),
-                    "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
+                   # "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
+                    "estimated_hours" :time_hours,
                     "custom_fields": [
                         {"id": 53, "name": "Lorry Number", "value": data.get("lorry_number", "")},
                         {"id": 54, "name": "Driver Contact", "value": data.get("driver_contact", "")},
@@ -405,7 +416,7 @@ class MLOwnerService:
                 "success": True,
                 "city1": city1,
                 "city2": city2,
-                "time_hours": round(time_hours, 2)
+                "time_hours": int(round(time_hours))
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
