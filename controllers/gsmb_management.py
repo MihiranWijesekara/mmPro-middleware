@@ -1,12 +1,13 @@
 from flask import Blueprint, jsonify, request
-from middleware.auth_middleware import role_required
+from middleware.auth_middleware import role_required,check_token
 from services.gsmb_managemnt_service import GsmbManagmentService
 
 
 # Define the Blueprint
 gsmb_management_bp = Blueprint('gsmb_management', __name__) 
-
-@gsmb_management_bp.route('/monthly-total-sand', methods=['GET'])                   
+#(Done)
+@gsmb_management_bp.route('/monthly-total-sand', methods=['GET']) 
+@check_token                     
 @role_required(['GSMBManagement'])         
 def monthly_total_sand_cubes():
     token = request.headers.get("Authorization")
@@ -20,8 +21,9 @@ def monthly_total_sand_cubes():
 
     return jsonify({"issues": issues})
 
-
-@gsmb_management_bp.route('/fetch-top-mining-holders', methods=['GET'])                   
+#(Done)
+@gsmb_management_bp.route('/fetch-top-mining-holders', methods=['GET'])    
+@check_token               
 @role_required(['GSMBManagement'])         
 def fetch_top_mining_holders():
     token = request.headers.get("Authorization")
@@ -35,7 +37,9 @@ def fetch_top_mining_holders():
 
     return jsonify({"issues": issues})    
 
+#(Done)
 @gsmb_management_bp.route('/fetch-royalty-counts', methods=['GET'])
+@check_token                 
 @role_required(['GSMBManagement'])
 def fetch_royalty_counts():
     print("fetch-royalty-counts")
@@ -52,7 +56,9 @@ def fetch_royalty_counts():
     # Return the response from the service method
     return response   
 
-@gsmb_management_bp.route('/monthly-mining-license-count', methods=['GET'])                   
+#(Done)
+@gsmb_management_bp.route('/monthly-mining-license-count', methods=['GET'])  
+@check_token                 
 @role_required(['GSMBManagement'])         
 def monthly_mining_license_count():
     print("monthly-mining-license-count")
@@ -67,8 +73,9 @@ def monthly_mining_license_count():
 
     return jsonify({"issues": issues})
 
-# Fetch transport license data by location
+# Fetch transport license data by location (DONE)
 @gsmb_management_bp.route('/transport-license-destination', methods=['GET'])
+@check_token
 @role_required(['GSMBManagement'])
 def transport_license_destination():
     token = request.headers.get("Authorization")
@@ -83,8 +90,9 @@ def transport_license_destination():
     return jsonify({"issues": issues})
 
 
-#Fetch mining license data by location
+#Fetch mining license data by location (DONE)
 @gsmb_management_bp.route('/total-location-ml', methods=['GET'])
+@check_token
 @role_required(['GSMBManagement'])
 def total_location_ml():
     token = request.headers.get("Authorization")
@@ -101,6 +109,7 @@ def total_location_ml():
 
 #ComplaintCounts
 @gsmb_management_bp.route('/complaint-counts', methods=['GET'])
+@check_token
 @role_required(['GSMBManagement'])
 def complaint_counts():
     token = request.headers.get("Authorization")
@@ -115,8 +124,9 @@ def complaint_counts():
     return jsonify({"issues": issues}) 
 
 
-#fetchRoleCounts
+#fetchRoleCounts (Done)
 @gsmb_management_bp.route('/role-counts', methods=['GET'])
+@check_token
 @role_required(['GSMBManagement'])
 def role_counts():
     token = request.headers.get("Authorization")
@@ -131,8 +141,9 @@ def role_counts():
     return jsonify({"issues": issues})
 
 
-#fetchMiningLicenseCounts
+#fetchMiningLicenseCounts (Done)
 @gsmb_management_bp.route('/mining-license-count', methods=['GET'])
+@check_token
 @role_required(['GSMBManagement'])
 def mining_license_count():
     token = request.headers.get("Authorization")
