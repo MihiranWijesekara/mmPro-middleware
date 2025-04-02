@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import os
 import requests
 from dotenv import load_dotenv
@@ -10,16 +11,17 @@ REDMINE_URL = os.getenv("REDMINE_URL")
 
 class PoliceOfficerService:
     @staticmethod
-    def check_lorry_number(lorry_number,token):
+    def check_lorry_number(lorry_number, token):
         try:
-
             API_KEY = JWTUtils.get_api_key_from_token(token)
 
             if not REDMINE_URL or not API_KEY:
                 return None, "Redmine URL or API Key is missing"
 
             headers = {"X-Redmine-API-Key": API_KEY}
+            current_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
 
+            # Fetch all TPL licenses (tracker_id = 5)
             tpl_params = {"tracker_id": 5}
             tpl_response = requests.get(f"{REDMINE_URL}/issues.json", params=tpl_params, headers=headers)
 
@@ -27,60 +29,88 @@ class PoliceOfficerService:
                 return None, f"Failed to fetch TPL issues: {tpl_response.status_code} - {tpl_response.text}"
 
             tpl_issues = tpl_response.json().get("issues", [])
-
             lorry_number_lower = lorry_number.lower()
 
-            tpl_license = next(
-            (issue for issue in tpl_issues if any(
-                cf["id"] == 53 and str(cf.get("value", "")).lower() == lorry_number_lower 
-                for cf in issue.get("custom_fields", [])
-            )),
-            None
-            )
+            # Find valid TPL license (not expired)
+            valid_tpl_license = None
+            for issue in tpl_issues:
+                # Check lorry number match (custom field 53)
+                lorry_match = any(
+                    cf["id"] == 53 and cf.get("value") and str(cf["value"]).lower() == lorry_number_lower
+                    for cf in issue.get("custom_fields", [])
+                )
+            
+                if lorry_match:
+                    # Check license validity
+                    created_on_str = issue.get("created_on")
+                    if not created_on_str:
+                        continue
+                
+                    try:
+                        created_on_utc = datetime.strptime(created_on_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                        estimated_hours = float(issue.get("estimated_hours", 0))
+                    
+                        # Calculate expiration time
+                        expiration_time_utc  = created_on_utc + timedelta(hours=estimated_hours)
+                    
+                        # Check if license is still valid
+                        if current_time_utc  < expiration_time_utc :
+                            valid_tpl_license = issue
+                            is_valid = True
+                            break  
+                        else:
+                            valid_tpl_license = issue  # Keep reference even if expired
+                            is_valid = False
+                          
+                    except Exception as e:
+                        print(f"Error processing issue {issue.get('id')}: {str(e)}")
+                        continue
 
-            if not tpl_license:
-                return None, "No TPL with this lorry number"
+            if not valid_tpl_license:
+                return None, "No valid (non-expired) TPL with this lorry number"
+            
+            # Convert times to Sri Lanka time (UTC+5:30)
+            sri_lanka_offset = timedelta(hours=5, minutes=30)
+            created_on_sl = created_on_utc + sri_lanka_offset
+            valid_until_sl = created_on_sl + timedelta(hours=estimated_hours)
 
+            # Extract TPL data
             tpl_data = {
-                #"loadNumber": tpl_license["id"],  # Load number
-                "Cubes": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 58), None),
-                "Destination": next((cf["value"] for cf in tpl_license["custom_fields"] if cf["id"] == 68), None),
-             #   "start": tpl_license.get("start_date"),
-              #  "dueDate": tpl_license.get("due_date")
+                "LicenseNumber": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 59), None),
+                "Cubes": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 58), None),
+                "Destination": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 68), None),
+                "ValidUntil": (created_on_sl + timedelta(hours=estimated_hours)).strftime("%A, %B %d, %Y at %I:%M %p"),
+                "Route_01": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 55), None),
+                "Route_02": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 56), None),
+                "Route_03": next((cf["value"] for cf in valid_tpl_license["custom_fields"] if cf["id"] == 57), None),
+                "IsValid": is_valid,
+                
             }
 
-            # Fetch all Mining Licenses (tracker_id = 4)
-            ml_params = {"tracker_id": 4}
-            ml_response = requests.get(f"{REDMINE_URL}/issues.json", params=ml_params, headers=headers)
+            # Fetch corresponding Mining License (tracker_id = 4)
+            ml_number = tpl_data["LicenseNumber"]
+            if ml_number:
+                ml_params = {"tracker_id": 4, "subject": ml_number}
+                ml_response = requests.get(f"{REDMINE_URL}/issues.json", params=ml_params, headers=headers)
 
-            if ml_response.status_code != 200:
-                return None, f"Failed to fetch Mining License issues: {ml_response.status_code} - {ml_response.text}"
+                if ml_response.status_code == 200:
+                    ml_issues = ml_response.json().get("issues", [])
+                    if ml_issues:
+                        mining_license = ml_issues[0]
+                        mining_data = {
+                           # "licenseNumber": mining_license["subject"],
+                            "owner": mining_license["assigned_to"]["name"] if isinstance(mining_license["assigned_to"], dict) else str(mining_license["assigned_to"]),
+                            "License Start Date": mining_license["start_date"],
+                            "License End Date": mining_license["due_date"],
+                            "License Owner Contact Number": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 66), None),
+                            "Grama Niladhari Division": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 31), None),
+                        }
+                        tpl_data.update(mining_data)
 
-            ml_issues = ml_response.json().get("issues", [])
-
-           # Find the corresponding Mining License based on the license number
-            mining_license = next((issue for issue in ml_issues if issue["subject"] == next(
-            (cf["value"] for cf in tpl_license.get("custom_fields", []) if cf["id"] == 59), None)), None)
-
-            if not mining_license:
-                return None, "No matching Mining License found"
-
-            # Extract required Mining License details
-            mining_data = {
-                "licenseNumber": mining_license["subject"],
-                "owner": mining_license["author"],
-               # "expires": mining_license.get("due_date"),
-               # "owner": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 2), None),
-               # "location": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 11), None),
-            }
-
-            # Combine results
-            result = {**tpl_data, **mining_data}
-
-            return result, None
+            return tpl_data, None
 
         except Exception as e:
-            return None, f"Server error: {str(e)}"
+            return None, f"Server error: {str(e)}"    
 
     @staticmethod
     def create_complaint(vehicleNumber, userID, token):
