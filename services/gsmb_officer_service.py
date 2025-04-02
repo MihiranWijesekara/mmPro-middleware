@@ -80,7 +80,99 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
+    @staticmethod
+    def register_mlowner(login, first_name, last_name, email, password, custom_fields, attachments=None):
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+        try:
+            user_payload = {
+                "login": login,
+                "firstname": first_name,
+                "lastname": last_name,
+                "mail": email,
+                "password": password,
+                "custom_fields": custom_fields
+            }
+            
+            # Call Redmine API to create user
+            response = requests.post(f"{REDMINE_URL}/users.json", json={"user": user_payload}, headers={"X-Redmine-API-Key": API_KEY})
+            
+            if response.status_code != 201:
+                return None, response.json()
+            
+            user_id = response.json()["user"]["id"]
+            
+            # Upload file attachments if available
+            if attachments:
+                for custom_field_id, file_path in attachments.items():
+                    upload_response = requests.post(f"{REDMINE_URL}/uploads.json", files={"file": open(file_path, "rb")}, headers={"X-Redmine-API-Key": API_KEY})
+                    
+                    if upload_response.status_code == 201:
+                        token = upload_response.json()["upload"]["token"]
+                        update_payload = {"user": {"custom_fields": [{"id": custom_field_id, "value": token}]}}
+                        requests.put(f"{REDMINE_URL}/users/{user_id}.json", json=update_payload, headers={"X-Redmine-API-Key": API_KEY})
+            
+            return response.json(), None
+        
+        except Exception as e:
+            return None, str(e)
+    @staticmethod
+    def upload_attachment(token, file_path, filename):
+        """Uploads a file to the attachments endpoint"""
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        try:
+            with open(file_path, 'rb') as f:
+                response = requests.post(
+                    f"{REDMINE_URL}/attachments.json",
+                    headers={"X-Redmine-API-Key": admin_api_key},
+                    files={"file": (filename, f)},
+                    data={"description": f"Uploaded for company registration: {filename}"}
+                )
+            if response.status_code == 201:
+                return response.json().get('attachment', {}).get('id')
+            return None
+        except Exception:
+            return None
 
+    @staticmethod
+    def register_ml_company(token, login, first_name, last_name, email, password, custom_fields):
+        """Registers a new ML owner company"""
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        payload = {
+            "user": {
+                "login": login,
+                "firstname": first_name,
+                "lastname": last_name,
+                "mail": email,
+                "password": password,
+                "admin": False,
+                "custom_fields": custom_fields
+            }
+        }
+
+        response = requests.post(
+            f"{REDMINE_URL}/users.json",
+            headers={
+                "X-Redmine-API-Key": admin_api_key,
+                "Content-Type": "application/json"
+            },
+            json=payload
+        )
+
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise Exception(f"Registration failed: {response.text}")
+
+    @staticmethod
+    def validate_company_data(data):
+        """Validates required company fields"""
+        required = ['login', 'first_name', 'last_name', 'email', 'password']
+        missing = [field for field in required if not data.get(field)]
+        if missing:
+            raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
     @staticmethod
     def get_tpls(token):
@@ -236,66 +328,66 @@ class GsmbOfficerService:
             return None, f"Server error: {str(e)}"
         
 
-    @staticmethod
-    def calculate_distance(city1, city2):
-        """
-        Calculate the distance between two cities using OpenRouteService API and return the time in hours.
+    # @staticmethod
+    # def calculate_distance(city1, city2):
+    #     """
+    #     Calculate the distance between two cities using OpenRouteService API and return the time in hours.
 
-        Args:
-            city1 (str): Name of the first city.
-            city2 (str): Name of the second city.
+    #     Args:
+    #         city1 (str): Name of the first city.
+    #         city2 (str): Name of the second city.
 
-        Returns:
-            dict: A dictionary containing the time in hours or an error message.
-        """
-        try:
-            # Step 1: Geocode cities to get coordinates
-            def geocode_location(city_name):
-                print("first request ins")
-                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
-                response_first = requests.get(url, timeout=1)
-                response = response_first.json()        
-                if response:
-                    lat = float(response[0]['lat'])
-                    lon = float(response[0]['lon'])
-                    print(lat, lon)
-                    return lon, lat  # Return as [longitude, latitude]
-                else:
-                    raise ValueError(f"Location '{city_name}' not found")
+    #     Returns:
+    #         dict: A dictionary containing the time in hours or an error message.
+    #     """
+    #     try:
+    #         # Step 1: Geocode cities to get coordinates
+    #         def geocode_location(city_name):
+    #             print("first request ins")
+    #             url = f"https://geocode.maps.co/search?q={city_name}&format=json"
+    #             response_first = requests.get(url, timeout=1)
+    #             response = response_first.json()        
+    #             if response:
+    #                 lat = float(response[0]['lat'])
+    #                 lon = float(response[0]['lon'])
+    #                 print(lat, lon)
+    #                 return lon, lat  # Return as [longitude, latitude]
+    #             else:
+    #                 raise ValueError(f"Location '{city_name}' not found")
 
-            # Geocode both cities
-            coord1 = geocode_location(city1)
-            coord2 = geocode_location(city2)
+    #         # Geocode both cities
+    #         coord1 = geocode_location(city1)
+    #         coord2 = geocode_location(city2)
 
-            print("second request")
+    #         print("second request")
 
-            # Step 2: Calculate distance using OpenRouteService
-            url = "https://api.openrouteservice.org/v2/directions/driving-car"
-            headers = {
-                "Authorization": GsmbOfficerService.ORS_API_KEY,
-                "Content-Type": "application/json"
-            }
-            body = {
-                "coordinates": [coord1, coord2],
-                "units": "km"
-            }
-            response = requests.post(url, headers=headers, json=body).json()
+    #         # Step 2: Calculate distance using OpenRouteService
+    #         url = "https://api.openrouteservice.org/v2/directions/driving-car"
+    #         headers = {
+    #             "Authorization": GsmbOfficerService.ORS_API_KEY,
+    #             "Content-Type": "application/json"
+    #         }
+    #         body = {
+    #             "coordinates": [coord1, coord2],
+    #             "units": "km"
+    #         }
+    #         response = requests.post(url, headers=headers, json=body).json()
 
-            # Extract distance from the response
-            distance_km = response['routes'][0]['summary']['distance']
+    #         # Extract distance from the response
+    #         distance_km = response['routes'][0]['summary']['distance']
 
-            # Calculate the time in hours: (distance / 30 km/h) + 2 hours
-            time_hours = (distance_km / 30) + 2
+    #         # Calculate the time in hours: (distance / 30 km/h) + 2 hours
+    #         time_hours = (distance_km / 30) + 2
 
-            # Return the time in hours
-            return {
-                "success": True,
-                "city1": city1,
-                "city2": city2,
-                "time_hours": round(time_hours, 2)
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+    #         # Return the time in hours
+    #         return {
+    #             "success": True,
+    #             "city1": city1,
+    #             "city2": city2,
+    #             "time_hours": round(time_hours, 2)
+    #         }
+    #     except Exception as e:
+    #         return {"success": False, "error": str(e)}
 
 
 

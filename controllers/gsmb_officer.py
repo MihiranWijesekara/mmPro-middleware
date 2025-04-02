@@ -2,6 +2,9 @@
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required, check_token
 from services.gsmb_officer_service import GsmbOfficerService
+import os
+from werkzeug.utils import secure_filename
+import tempfile
 
 
 # Define the Blueprint for gsmb_officer
@@ -399,6 +402,113 @@ def get_company_mlowners():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@gsmb_officer_bp.route('/register-mlowners/individual', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def register_individual_mlowner():
+    try:
+        token = request.headers.get('Authorization')
+        data = request.get_json()
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Validate required fields
+        required_fields = [
+            'login', 'first_name', 'last_name', 'email', 'password',
+            'national_identity_card', 'address', 'nationality', 'mobile_number'
+        ]
+        
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+        # Prepare custom fields for individual
+        custom_fields = [
+            {"id": 41, "value": data['national_identity_card']},  # National Identity Card
+            {"id": 42, "value": data.get('address', '')},  # Address
+            {"id": 43, "value": data.get('nationality', '')},  # Nationality
+            {"id": 44, "value": data.get('mobile_number', '')},  # Mobile Number
+            {"id": 45, "value": data.get('employment_name_of_employer', '')},  # Employment, Name of employer
+            {"id": 46, "value": data.get('place_of_business', '')},  # Place of Business
+            {"id": 48, "value": data.get('residence', '')}  # Residence
+        ]
+
+        # Call service to create user
+        result, error = GsmbOfficerService.register_mlowner(
+            login=data['login'],
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            email=data['email'],
+            password=data['password'],
+            custom_fields=custom_fields
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": result}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gsmb_officer_bp.route('/register-mlowners/company', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def register_company_mlowner():
+    try:
+        token = request.headers.get('Authorization')
+        data = request.get_json()
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Validate required fields
+        required_fields = [
+            'login', 'first_name', 'last_name', 'email', 'password',
+            'country_of_incorporation', 'head_office', 'address_of_registered_company'
+        ]
+        
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+        # Prepare custom fields for company
+        custom_fields = [
+            {"id": 47, "value": data['country_of_incorporation']},  # Country of Incorporation
+            {"id": 48, "value": data['head_office']},  # Head Office
+            {"id": 49, "value": data['address_of_registered_company']}  # Address of Registered Company
+        ]
+
+        # Handle file attachments
+        file_fields = {"articles_of_association": 75, "annual_reports": 76}
+        attachments = {}
+        for field, custom_field_id in file_fields.items():
+            if field in data:
+                attachments[custom_field_id] = data[field]
+
+        # Call service to create user
+        result, error = GsmbOfficerService.register_mlowner(
+            login=data['login'],
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            email=data['email'],
+            password=data['password'],
+            custom_fields=custom_fields,
+            attachments=attachments
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": result}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @gsmb_officer_bp.route('/get-tpls', methods=['GET'])
 @check_token
@@ -464,34 +574,34 @@ def get_mining_license_counts():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@gsmb_officer_bp.route('/get-distance', methods=['POST'])
-@check_token
-@role_required(['GSMBOfficer'])
-def calculate_distance():
-    """
-    Endpoint to calculate the distance between two cities.
-    Expects a JSON payload with 'city1' and 'city2'.
-    """
-    # Get JSON data from the request
-    data = request.json
-    # Validate input
-    city1 = data.get('city1')
-    city2 = data.get('city2')
+# @gsmb_officer_bp.route('/get-distance', methods=['POST'])
+# @check_token
+# @role_required(['GSMBOfficer'])
+# def calculate_distance():
+#     """
+#     Endpoint to calculate the distance between two cities.
+#     Expects a JSON payload with 'city1' and 'city2'.
+#     """
+#     # Get JSON data from the request
+#     data = request.json
+#     # Validate input
+#     city1 = data.get('city1')
+#     city2 = data.get('city2')
 
-    if not city1 or not city2:
-        return jsonify({
-            "success": False,
-            "error": "Both 'city1' and 'city2' are required"
-        }), 400
+#     if not city1 or not city2:
+#         return jsonify({
+#             "success": False,
+#             "error": "Both 'city1' and 'city2' are required"
+#         }), 400
 
-    # Call the service to calculate the distance
-    result = GsmbOfficerService.calculate_distance(city1, city2)
+#     # Call the service to calculate the distance
+#     result = GsmbOfficerService.calculate_distance(city1, city2)
 
-    # Return the result
-    if result['success']:
-        return jsonify(result), 200
-    else:
-        return jsonify(result), 500
+#     # Return the result
+#     if result['success']:
+#         return jsonify(result), 200
+#     else:
+#         return jsonify(result), 500
 
     
           
