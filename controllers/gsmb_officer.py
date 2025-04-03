@@ -2,6 +2,9 @@
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required, check_token
 from services.gsmb_officer_service import GsmbOfficerService
+import os
+from werkzeug.utils import secure_filename
+import tempfile
 
 
 # Define the Blueprint for gsmb_officer
@@ -167,54 +170,6 @@ def update_license(licenseId):
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-        
-
-
-
-
-
-
-
-
-
-           # Register  ML Owner
-@gsmb_officer_bp.route('/add-mlowner', methods=['POST'])
-@check_token
-@role_required(['GSMBOfficer'])
-def add_new_mlowner():
-    try:
-        #Get the token from the request header
-        token =request.headers.get('Authorization')
-
-        if not token:
-            return jsonify({"error":"Authorization token is missing"}), 400
-
-        # Get the userData from the request body (expected to be a JSON)
-        userData = request.json 
-
-        #validate the userData, ensure required data is present 
-        if not userData or 'user' not in userData:
-            return jsonify({"error" : "Missing required data in the request"}), 400
-        
-        # pass the token and userData to the service method
-        new_owner, error =GsmbOfficerService.add_new_mlowner(token, userData)
-
-        if error:
-            return jsonify({"error": error}), 500
-        
-        # After the user is created, assign them to a project
-        project_id = 31  # Define the project ID here (GSMB project, for example)
-        role_id = 10  # Define the role ID here (ML Owner role, for example)
-        assignment_response, assignment_error = GsmbOfficerService.assign_user_to_project(new_owner['id'], project_id, role_id, token)
-
-        if assignment_error:
-            return jsonify({"error": assignment_error}), 500
-
-        return jsonify({"success": True, "data": new_owner}), 201
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
     
 
 # Get TPL History
@@ -241,15 +196,6 @@ def view_tpls():
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500  # Return server error message
-
-
-
-
-
-
-
-
-
 
 
 
@@ -399,6 +345,7 @@ def get_company_mlowners():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
 
 @gsmb_officer_bp.route('/get-tpls', methods=['GET'])
 @check_token
@@ -421,6 +368,27 @@ def get_tpls():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+# @gsmb_officer_bp.route('/get-mining-licenses', methods=['GET'])
+# @check_token
+# @role_required(['GSMBOfficer'])
+# def get_mining_licenses():
+#     try:
+#         token = request.headers.get('Authorization')
+
+#         if not token:
+#             return jsonify({"error": "Authorization token is missing"}), 400
+
+#         # Fetch Mining Licenses from the service
+#         mining_licenses, error = GsmbOfficerService.get_mining_licenses(token)
+        
+#         if error:
+#             return jsonify({"error": error}), 500
+
+#         return jsonify({"success": True, "data": mining_licenses}), 200
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
 @gsmb_officer_bp.route('/get-mining-licenses', methods=['GET'])
 @check_token
 @role_required(['GSMBOfficer'])
@@ -433,7 +401,7 @@ def get_mining_licenses():
 
         # Fetch Mining Licenses from the service
         mining_licenses, error = GsmbOfficerService.get_mining_licenses(token)
-        
+
         if error:
             return jsonify({"error": error}), 500
 
@@ -441,6 +409,7 @@ def get_mining_licenses():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @gsmb_officer_bp.route('/get-mining-license-counts', methods=['GET'])
@@ -464,34 +433,34 @@ def get_mining_license_counts():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@gsmb_officer_bp.route('/get-distance', methods=['POST'])
-@check_token
-@role_required(['GSMBOfficer'])
-def calculate_distance():
-    """
-    Endpoint to calculate the distance between two cities.
-    Expects a JSON payload with 'city1' and 'city2'.
-    """
-    # Get JSON data from the request
-    data = request.json
-    # Validate input
-    city1 = data.get('city1')
-    city2 = data.get('city2')
+# @gsmb_officer_bp.route('/get-distance', methods=['POST'])
+# @check_token
+# @role_required(['GSMBOfficer'])
+# def calculate_distance():
+#     """
+#     Endpoint to calculate the distance between two cities.
+#     Expects a JSON payload with 'city1' and 'city2'.
+#     """
+#     # Get JSON data from the request
+#     data = request.json
+#     # Validate input
+#     city1 = data.get('city1')
+#     city2 = data.get('city2')
 
-    if not city1 or not city2:
-        return jsonify({
-            "success": False,
-            "error": "Both 'city1' and 'city2' are required"
-        }), 400
+#     if not city1 or not city2:
+#         return jsonify({
+#             "success": False,
+#             "error": "Both 'city1' and 'city2' are required"
+#         }), 400
 
-    # Call the service to calculate the distance
-    result = GsmbOfficerService.calculate_distance(city1, city2)
+#     # Call the service to calculate the distance
+#     result = GsmbOfficerService.calculate_distance(city1, city2)
 
-    # Return the result
-    if result['success']:
-        return jsonify(result), 200
-    else:
-        return jsonify(result), 500
+#     # Return the result
+#     if result['success']:
+#         return jsonify(result), 200
+#     else:
+#         return jsonify(result), 500
 
     
           
