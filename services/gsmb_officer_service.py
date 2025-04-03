@@ -79,7 +79,6 @@ class GsmbOfficerService:
             return None, f"Server error: {str(e)}"
         
 
-
     @staticmethod
     def get_tpls(token):
         try:
@@ -130,6 +129,63 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
+    # @staticmethod
+    # def get_mining_licenses(token):
+    #     try:
+    #         # 🔑 Extract user's API key from token
+    #         user_api_key = JWTUtils.get_api_key_from_token(token)
+    #         if not user_api_key:
+    #             return None, "Invalid or missing API key in the token"
+
+    #         # 🌐 Get Redmine URL
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+    #         if not REDMINE_URL:
+    #             return None, "Environment variable 'REDMINE_URL' is not set"
+
+    #         # 🚀 Fetch ML issues from Redmine
+    #         ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
+    #         response = requests.get(
+    #             ml_issues_url,
+    #             headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+    #         )
+
+    #         if response.status_code != 200:
+    #             return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
+
+    #         # 🛠️ Process the response
+    #         issues = response.json().get("issues", [])
+    #         formatted_mls = []
+
+    #         for issue in issues:
+    #             formatted_ml = {
+    #                 "id": issue.get("id"),
+    #                 "subject": issue.get("subject"),
+    #                 "status": issue.get("status", {}).get("name"),
+    #                 "author": issue.get("author", {}).get("name"),
+    #                 "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
+    #                 "start_date": issue.get("start_date"),
+    #                 "due_date": issue.get("due_date"),
+    #                 "exploration_licence_no": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Exploration Licence No"),
+    #                 "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of Applicant OR Company"),
+    #                 "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details) "),
+    #                 "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owners’ name"),
+    #                 "village_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of village "),
+    #                 "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Grama Niladhari Division"),
+    #                 "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Divisional Secretary Division"),
+    #                 "administrative_district": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Administrative District"),
+    #                 "capacity": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Capacity"),
+    #                 "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
+    #                 "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
+    #                 "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
+                
+    #             }
+    #             formatted_mls.append(formatted_ml)
+
+    #         return formatted_mls, None
+
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
+
     @staticmethod
     def get_mining_licenses(token):
         try:
@@ -143,7 +199,7 @@ class GsmbOfficerService:
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
-            # 🚀 Fetch ML issues from Redmine
+            # 🚀 Fetch all ML issues from Redmine
             ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
             response = requests.get(
                 ml_issues_url,
@@ -153,13 +209,17 @@ class GsmbOfficerService:
             if response.status_code != 200:
                 return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
 
-            # 🛠️ Process the response
             issues = response.json().get("issues", [])
             formatted_mls = []
 
             for issue in issues:
+                issue_id = issue.get("id")
+                
+                # Fetching attachments separately
+                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, issue_id)
+
                 formatted_ml = {
-                    "id": issue.get("id"),
+                    "id": issue_id,
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "author": issue.get("author", {}).get("name"),
@@ -179,14 +239,63 @@ class GsmbOfficerService:
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
                     "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
-                
+                    
+                    # Fetching File URLs from Attachments API
+                    "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                    "license_fee_receipt": attachment_urls.get("License Fee Receipt"),
+                    "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+                    "professional": attachment_urls.get("Professional"),
+                    "licensed_boundary_survey": attachment_urls.get("Licensed Boundary Survey"),
+                    "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
+
                 formatted_mls.append(formatted_ml)
 
             return formatted_mls, None
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+
+    @staticmethod
+    def get_attachment_urls(api_key, redmine_url, issue_id):
+        try:
+            attachment_url = f"{redmine_url}/issues/{issue_id}.json?include=attachments"
+            response = requests.get(
+                attachment_url,
+                headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return {}
+
+            issue_data = response.json().get("issue", {})
+            attachments = issue_data.get("attachments", [])
+
+            file_mapping = {
+                "Economic Viability Report": None,
+                "License Fee Receipt": None,
+                "Detailed Mine Restoration Plan": None,
+                "Professional": None,
+                "Licensed Boundary Survey": None,
+                "Payment Receipt": None
+            }
+
+            for attachment in attachments:
+                filename = attachment.get("filename", "")
+                file_url = attachment.get("content_url", "")
+
+                # Mapping filenames to specific fields
+                for key in file_mapping.keys():
+                    if key.lower().replace(" ", "_") in filename.lower():
+                        file_mapping[key] = file_url
+
+            return file_mapping
+
+        except Exception as e:
+            return {}
+
+
 
     @staticmethod
     def get_custom_field_value(custom_fields, field_name):
@@ -232,66 +341,66 @@ class GsmbOfficerService:
             return None, f"Server error: {str(e)}"
         
 
-    @staticmethod
-    def calculate_distance(city1, city2):
-        """
-        Calculate the distance between two cities using OpenRouteService API and return the time in hours.
+    # @staticmethod
+    # def calculate_distance(city1, city2):
+    #     """
+    #     Calculate the distance between two cities using OpenRouteService API and return the time in hours.
 
-        Args:
-            city1 (str): Name of the first city.
-            city2 (str): Name of the second city.
+    #     Args:
+    #         city1 (str): Name of the first city.
+    #         city2 (str): Name of the second city.
 
-        Returns:
-            dict: A dictionary containing the time in hours or an error message.
-        """
-        try:
-            # Step 1: Geocode cities to get coordinates
-            def geocode_location(city_name):
-                print("first request ins")
-                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
-                response_first = requests.get(url, timeout=1)
-                response = response_first.json()        
-                if response:
-                    lat = float(response[0]['lat'])
-                    lon = float(response[0]['lon'])
-                    print(lat, lon)
-                    return lon, lat  # Return as [longitude, latitude]
-                else:
-                    raise ValueError(f"Location '{city_name}' not found")
+    #     Returns:
+    #         dict: A dictionary containing the time in hours or an error message.
+    #     """
+    #     try:
+    #         # Step 1: Geocode cities to get coordinates
+    #         def geocode_location(city_name):
+    #             print("first request ins")
+    #             url = f"https://geocode.maps.co/search?q={city_name}&format=json"
+    #             response_first = requests.get(url, timeout=1)
+    #             response = response_first.json()        
+    #             if response:
+    #                 lat = float(response[0]['lat'])
+    #                 lon = float(response[0]['lon'])
+    #                 print(lat, lon)
+    #                 return lon, lat  # Return as [longitude, latitude]
+    #             else:
+    #                 raise ValueError(f"Location '{city_name}' not found")
 
-            # Geocode both cities
-            coord1 = geocode_location(city1)
-            coord2 = geocode_location(city2)
+    #         # Geocode both cities
+    #         coord1 = geocode_location(city1)
+    #         coord2 = geocode_location(city2)
 
-            print("second request")
+    #         print("second request")
 
-            # Step 2: Calculate distance using OpenRouteService
-            url = "https://api.openrouteservice.org/v2/directions/driving-car"
-            headers = {
-                "Authorization": GsmbOfficerService.ORS_API_KEY,
-                "Content-Type": "application/json"
-            }
-            body = {
-                "coordinates": [coord1, coord2],
-                "units": "km"
-            }
-            response = requests.post(url, headers=headers, json=body).json()
+    #         # Step 2: Calculate distance using OpenRouteService
+    #         url = "https://api.openrouteservice.org/v2/directions/driving-car"
+    #         headers = {
+    #             "Authorization": GsmbOfficerService.ORS_API_KEY,
+    #             "Content-Type": "application/json"
+    #         }
+    #         body = {
+    #             "coordinates": [coord1, coord2],
+    #             "units": "km"
+    #         }
+    #         response = requests.post(url, headers=headers, json=body).json()
 
-            # Extract distance from the response
-            distance_km = response['routes'][0]['summary']['distance']
+    #         # Extract distance from the response
+    #         distance_km = response['routes'][0]['summary']['distance']
 
-            # Calculate the time in hours: (distance / 30 km/h) + 2 hours
-            time_hours = (distance_km / 30) + 2
+    #         # Calculate the time in hours: (distance / 30 km/h) + 2 hours
+    #         time_hours = (distance_km / 30) + 2
 
-            # Return the time in hours
-            return {
-                "success": True,
-                "city1": city1,
-                "city2": city2,
-                "time_hours": round(time_hours, 2)
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+    #         # Return the time in hours
+    #         return {
+    #             "success": True,
+    #             "city1": city1,
+    #             "city2": city2,
+    #             "time_hours": round(time_hours, 2)
+    #         }
+    #     except Exception as e:
+    #         return {"success": False, "error": str(e)}
 
 
 
