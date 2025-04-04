@@ -221,7 +221,9 @@ class GsmbOfficerService:
                 issue_id = issue.get("id")
                 
                 # Fetching attachments separately
-                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, issue_id)
+                custom_fields = issue.get("custom_fields", [])  # Extract custom fields
+                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
 
                 formatted_ml = {
                     "id": issue_id,
@@ -246,10 +248,10 @@ class GsmbOfficerService:
                     
                     # Fetching File URLs from Attachments API
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
-                    "license_fee_receipt": attachment_urls.get("License Fee Receipt"),
+                    "license_fee_receipt": attachment_urls.get("License fee receipt"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "professional": attachment_urls.get("Professional"),
-                    "licensed_boundary_survey": attachment_urls.get("Licensed Boundary Survey"),
+                    "licensed_boundary_survey": attachment_urls.get("Licensed boundary Survey"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
 
@@ -262,43 +264,44 @@ class GsmbOfficerService:
 
 
     @staticmethod
-    def get_attachment_urls(api_key, redmine_url, issue_id):
+    def get_attachment_urls(api_key, redmine_url, custom_fields):
         try:
-            attachment_url = f"{redmine_url}/issues/{issue_id}.json?include=attachments"
-            response = requests.get(
-                attachment_url,
-                headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
-            )
-
-            if response.status_code != 200:
-                return {}
-
-            issue_data = response.json().get("issue", {})
-            attachments = issue_data.get("attachments", [])
-
-            file_mapping = {
+            # Define the mapping of custom field names to their attachment IDs
+            file_fields = {
                 "Economic Viability Report": None,
-                "License Fee Receipt": None,
+                "License fee receipt": None,
                 "Detailed Mine Restoration Plan": None,
                 "Professional": None,
-                "Licensed Boundary Survey": None,
+                "Licensed boundary Survey": None,
                 "Payment Receipt": None
             }
 
-            for attachment in attachments:
-                filename = attachment.get("filename", "")
-                file_url = attachment.get("content_url", "")
+            # Extract attachment IDs from custom fields
+            for field in custom_fields:
+                field_name = field.get("name")
+                attachment_id = field.get("value")
 
-                # Mapping filenames to specific fields
-                for key in file_mapping.keys():
-                    if key.lower().replace(" ", "_") in filename.lower():
-                        file_mapping[key] = file_url
+                if field_name in file_fields and attachment_id.isdigit():
+                    file_fields[field_name] = attachment_id
 
-            return file_mapping
+            # Fetch URLs for valid attachment IDs
+            file_urls = {}
+            for field_name, attachment_id in file_fields.items():
+                if attachment_id:
+                    attachment_url = f"{redmine_url}/attachments/{attachment_id}.json"
+                    response = requests.get(
+                        attachment_url,
+                        headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                    )
+
+                    if response.status_code == 200:
+                        attachment_data = response.json().get("attachment", {})
+                        file_urls[field_name] = attachment_data.get("content_url", "")
+
+            return file_urls
 
         except Exception as e:
             return {}
-
 
 
     @staticmethod
