@@ -547,7 +547,7 @@ class MLOwnerService:
 
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
-        
+    
             if not REDMINE_URL or not API_KEY:
                 return None, "System configuration error - missing Redmine URL or API Key"
 
@@ -566,7 +566,6 @@ class MLOwnerService:
                 "X-Redmine-API-Key": API_KEY
             }
 
-        
             limit = LimitUtils.get_limit()
             response = requests.get(
                 f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
@@ -579,57 +578,60 @@ class MLOwnerService:
 
             issues = response.json().get("issues", [])
             tpl_list = []
-            current_date = datetime.now().date()
+            current_datetime = datetime.now()
+        
             for issue in issues:
                 try:
                     custom_fields = {
                         field["name"]: field["value"] 
                         for field in issue.get("custom_fields", [])
                     }
-                
+            
                     if custom_fields.get("Mining License Number") != mining_license_number:
                         continue
 
-                    start_date = None
-                    due_date = None
+                    created_date = None
+                    estimated_hours = issue.get("estimated_hours")
+                    status = "Unknown"
+                
                     try:
-                        if issue.get("start_date"):
-                            start_date = datetime.strptime(issue["start_date"], "%Y-%m-%d").date()
-                        if issue.get("due_date"):
-                            due_date = datetime.strptime(issue["due_date"], "%Y-%m-%d").date()
+                        if issue.get("created_on"):
+                            created_date = datetime.strptime(issue["created_on"], "%Y-%m-%dT%H:%M:%SZ")
+                    
+                        if created_date and estimated_hours:
+                            # Calculate expiration datetime (created date + estimated hours)
+                            expiration_datetime = created_date + timedelta(hours=float(estimated_hours))
+                        
+                            if current_datetime < expiration_datetime:
+                                status = "Active"
+                            else:
+                                status = "Expired"
+                        else:
+                            # If we don't have both created_date and estimated_hours, we can't determine status
+                            status = "Undetermined"
+
+                        tpl_data = {
+                            "tpl_id": issue.get("id"),
+                            "license_number": mining_license_number,
+                            "subject": issue.get("subject", ""),
+                            "status": status,
+                            "lorry_number": custom_fields.get("Lorry Number"),
+                            "driver_contact": custom_fields.get("Driver Contact"),
+                            "destination": custom_fields.get("Destination"),
+                            "Route_01": custom_fields.get("Route 01"),
+                            "Route_02": custom_fields.get("Route 02"),
+                            "Route_03": custom_fields.get("Route 03"),
+                            "cubes": custom_fields.get("Cubes"),  
+                            "Create_Date": issue.get("created_on", ""),
+                            "Estimated Hours": estimated_hours,
+                        }
+                
+                        tpl_list.append(tpl_data)
+                
                     except ValueError as e:
                         print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
                         continue
 
-                    status = "Unknown"
-                    if start_date and due_date:
-                        if current_date < start_date:
-                            status = "Pending"
-                        elif start_date <= current_date <= due_date:
-                            status = "Active"
-                        elif current_date > due_date:
-                            status = "Expired"
-
-                    tpl_data = {
-
-                        "tpl_id": issue.get("id"),
-                        "license_number": mining_license_number,
-                        "subject": issue.get("subject", ""),
-                        "start_date": issue.get("start_date"),
-                        "due_date": issue.get("due_date"),
-                        "status": status,
-                        "lorry_number": custom_fields.get("Lorry Number"),
-                        "driver_contact": custom_fields.get("Driver Contact"),
-                       "destination": custom_fields.get("Destination"),
-                        "Route_01": custom_fields.get("Route 01"),
-                        "Route_02": custom_fields.get("Route 02"),
-                        "Route_03": custom_fields.get("Route 03"),
-                        "cubes": custom_fields.get("Cubes"),  
-                        "Create Date": issue.get("created_on", ""),    
-                    }
-                
-                    tpl_list.append(tpl_data)
-                
                 except Exception as e:
                     print(f"Error processing issue {issue.get('id')}: {str(e)}")
                     continue
@@ -640,6 +642,5 @@ class MLOwnerService:
             return None, f"Network error: {str(e)}"
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
-            return None, f"Processing error: {str(e)}"   
-
+        return None, f"Processing error: {str(e)}"
     
