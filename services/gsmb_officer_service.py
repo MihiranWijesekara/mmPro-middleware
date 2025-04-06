@@ -9,8 +9,6 @@ from flask import request
 
 from utils.limit_utils import LimitUtils
 
-
-
 load_dotenv()
 
 class GsmbOfficerService:
@@ -75,11 +73,34 @@ class GsmbOfficerService:
                 user for user in all_users if user["id"] in ml_owner_ids
             ]
 
-            return ml_owners_details, None  # ✅ Return only relevant user details
+            # Fetch the mining license counts for all users
+            license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
+            if license_error:
+                return None, license_error
+
+            # 5️⃣ Map license count to each MLOwner
+            formatted_ml_owners = []
+            for ml_owner in ml_owners_details:
+                owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
+                ml_owner_name = owner_name.strip()
+                license_count = license_counts.get(ml_owner_name, 0)
+
+                # Prepare formatted output
+                formatted_owner = {
+                    "ownerName": ml_owner_name,
+                    "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
+                    "email": ml_owner.get("mail", ""),
+                    "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
+                    "totalLicenses": license_count
+                }
+                
+                formatted_ml_owners.append(formatted_owner)
+                print(formatted_owner["totalLicenses"])
+
+            return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-        
 
     @staticmethod
     def get_tpls(token):
@@ -89,7 +110,6 @@ class GsmbOfficerService:
             if not user_api_key:
                 return None, "Invalid or missing API key in the token"
 
-            # 🌐 Get Redmine URL and Admin API key
             REDMINE_URL = os.getenv("REDMINE_URL")
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
@@ -104,7 +124,6 @@ class GsmbOfficerService:
             if response.status_code != 200:
                 return None, f"Failed to fetch TPL issues: {response.status_code} - {response.text}"
 
-            # 🛠️ Process the response
             issues = response.json().get("issues", [])
             formatted_tpls = []
 
@@ -114,17 +133,16 @@ class GsmbOfficerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "author": issue.get("author", {}).get("name"),
+                    "tracker": issue.get("tracker", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
                     "start_date": issue.get("start_date"),
                     "due_date": issue.get("due_date"),
                     "lorry_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Number"),
                     "driver_contact": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Driver Contact"),
-                    "route_01": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 01"),
-                    "route_02": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 02"),
-                    "route_03": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 03"),
                     "cubes": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Cubes"),
                     "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     "destination": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Destination"),
+                    "lorry_driver_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Driver Name"),
                 
                 }
                 formatted_tpls.append(formatted_tpl)
@@ -245,6 +263,7 @@ class GsmbOfficerService:
                     "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
+                    "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
                     
                     # Fetching File URLs from Attachments API
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
