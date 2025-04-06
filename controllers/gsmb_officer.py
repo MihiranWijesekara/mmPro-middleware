@@ -247,7 +247,7 @@ def get_mlowners():
         if error:
             return jsonify({"error": error}), 500
 
-        return jsonify({"success": True, "data": mlowners_details}), 200
+        return jsonify(mlowners_details)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -73,11 +73,34 @@ class GsmbOfficerService:
                 user for user in all_users if user["id"] in ml_owner_ids
             ]
 
-            return ml_owners_details, None  # ✅ Return only relevant user details
+            # Fetch the mining license counts for all users
+            license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
+            if license_error:
+                return None, license_error
+
+            # 5️⃣ Map license count to each MLOwner
+            formatted_ml_owners = []
+            for ml_owner in ml_owners_details:
+                owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
+                ml_owner_name = owner_name.strip()
+                license_count = license_counts.get(ml_owner_name, 0)
+
+                # Prepare formatted output
+                formatted_owner = {
+                    "ownerName": ml_owner_name,
+                    "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
+                    "email": ml_owner.get("mail", ""),
+                    "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
+                    "totalLicenses": license_count
+                }
+                
+                formatted_ml_owners.append(formatted_owner)
+                print(formatted_owner["totalLicenses"])
+
+            return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-        
 
     @staticmethod
     def get_tpls(token):
