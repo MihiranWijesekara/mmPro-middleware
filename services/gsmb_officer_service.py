@@ -283,6 +283,69 @@ class GsmbOfficerService:
 
 
     @staticmethod
+    def get_complaints(token):
+        try:
+            # 🔑 Extract user's API key from token
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            # 🌐 Get Redmine URL
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # 🚀 Fetch Complaint issues
+            complaints_url = f"{REDMINE_URL}/issues.json?tracker_id=6&project_id=1"
+            response = requests.get(
+                complaints_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch complaint issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            formatted_complaints = []
+
+            for issue in issues:
+                custom_fields = issue.get("custom_fields", [])
+
+                # Extract Lorry Number and Mobile Number from custom fields
+                lorry_number = None
+                mobile_number = None
+
+                for field in custom_fields:
+                    if field.get("name") == "Lorry Number":
+                        lorry_number = field.get("value")
+                    elif field.get("name") == "Mobile Number":
+                        mobile_number = field.get("value")
+
+                # 🛠️ Format complaint_date
+                created_on = issue.get("created_on")
+                complaint_date = None
+                if created_on:
+                    try:
+                        # Parse ISO datetime and format it
+                        dt = datetime.strptime(created_on, "%Y-%m-%dT%H:%M:%SZ")
+                        complaint_date = dt.strftime("%Y-%m-%d %H:%M:%S")  # 👈 this adds the space
+                    except Exception as e:
+                        complaint_date = created_on  # fallback if parsing fails
+
+                formatted_complaint = {
+                    "lorry_number": lorry_number,
+                    "mobile_number": mobile_number,
+                    "complaint_date": complaint_date,
+                }
+                formatted_complaints.append(formatted_complaint)
+
+            return formatted_complaints, None
+
+        except Exception as e:
+            return None, str(e)
+
+
+    @staticmethod
     def get_attachment_urls(api_key, redmine_url, custom_fields):
         try:
             # Define the mapping of custom field names to their attachment IDs

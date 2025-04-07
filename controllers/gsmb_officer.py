@@ -409,6 +409,17 @@ def get_mining_licenses():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@gsmb_officer_bp.route('/get-complaints', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_complaints():
+    token = request.headers.get('Authorization')
+    complaints, error = GsmbOfficerService.get_complaints(token)
+    if error:
+        return {"success": False, "message": error}
+    return {"success": True, "data": complaints}
+
 
 
 
