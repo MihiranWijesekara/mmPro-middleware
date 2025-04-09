@@ -87,6 +87,7 @@ class GsmbOfficerService:
 
                 # Prepare formatted output
                 formatted_owner = {
+                    "id": ml_owner["id"],
                     "ownerName": ml_owner_name,
                     "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
                     "email": ml_owner.get("mail", ""),
