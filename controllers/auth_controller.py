@@ -206,6 +206,7 @@ def register_police_officer():
         nic_back_file = request.files.get('nic_back')
         work_id_file = request.files.get('work_id')
 
+
         nic_front_id = AuthService.upload_file_to_redmine(nic_front_file) if nic_front_file else None
         nic_back_id = AuthService.upload_file_to_redmine(nic_back_file) if nic_back_file else None
         work_id_file_id = AuthService.upload_file_to_redmine(work_id_file) if work_id_file else None
@@ -267,6 +268,7 @@ def register_gsmb_officer():
         nic_front_file = request.files.get('nic_front')
         nic_back_file = request.files.get('nic_back')
         work_id_file = request.files.get('work_id')
+
 
         nic_front_id = AuthService.upload_file_to_redmine(nic_front_file) if nic_front_file else None
         nic_back_id = AuthService.upload_file_to_redmine(nic_back_file) if nic_back_file else None
