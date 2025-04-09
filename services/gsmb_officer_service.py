@@ -73,11 +73,35 @@ class GsmbOfficerService:
                 user for user in all_users if user["id"] in ml_owner_ids
             ]
 
-            return ml_owners_details, None  # ✅ Return only relevant user details
+            # Fetch the mining license counts for all users
+            license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
+            if license_error:
+                return None, license_error
+
+            # 5️⃣ Map license count to each MLOwner
+            formatted_ml_owners = []
+            for ml_owner in ml_owners_details:
+                owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
+                ml_owner_name = owner_name.strip()
+                license_count = license_counts.get(ml_owner_name, 0)
+
+                # Prepare formatted output
+                formatted_owner = {
+                    "id": ml_owner["id"],
+                    "ownerName": ml_owner_name,
+                    "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
+                    "email": ml_owner.get("mail", ""),
+                    "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
+                    "totalLicenses": license_count
+                }
+                
+                formatted_ml_owners.append(formatted_owner)
+                print(formatted_owner["totalLicenses"])
+
+            return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-        
 
     @staticmethod
     def get_tpls(token):
@@ -216,7 +240,9 @@ class GsmbOfficerService:
                 issue_id = issue.get("id")
                 
                 # Fetching attachments separately
-                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, issue_id)
+                custom_fields = issue.get("custom_fields", [])  # Extract custom fields
+                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
 
                 formatted_ml = {
                     "id": issue_id,
@@ -242,10 +268,10 @@ class GsmbOfficerService:
                     
                     # Fetching File URLs from Attachments API
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
-                    "license_fee_receipt": attachment_urls.get("License Fee Receipt"),
+                    "license_fee_receipt": attachment_urls.get("License fee receipt"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "professional": attachment_urls.get("Professional"),
-                    "licensed_boundary_survey": attachment_urls.get("Licensed Boundary Survey"),
+                    "licensed_boundary_survey": attachment_urls.get("Licensed boundary Survey"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
 
@@ -258,43 +284,107 @@ class GsmbOfficerService:
 
 
     @staticmethod
-    def get_attachment_urls(api_key, redmine_url, issue_id):
+    def get_complaints(token):
         try:
-            attachment_url = f"{redmine_url}/issues/{issue_id}.json?include=attachments"
+            # 🔑 Extract user's API key from token
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            # 🌐 Get Redmine URL
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # 🚀 Fetch Complaint issues
+            complaints_url = f"{REDMINE_URL}/issues.json?tracker_id=6&project_id=1"
             response = requests.get(
-                attachment_url,
-                headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                complaints_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
             )
 
             if response.status_code != 200:
-                return {}
+                return None, f"Failed to fetch complaint issues: {response.status_code} - {response.text}"
 
-            issue_data = response.json().get("issue", {})
-            attachments = issue_data.get("attachments", [])
+            issues = response.json().get("issues", [])
+            formatted_complaints = []
 
-            file_mapping = {
+            for issue in issues:
+                custom_fields = issue.get("custom_fields", [])
+
+                # Extract Lorry Number and Mobile Number from custom fields
+                lorry_number = None
+                mobile_number = None
+
+                for field in custom_fields:
+                    if field.get("name") == "Lorry Number":
+                        lorry_number = field.get("value")
+                    elif field.get("name") == "Mobile Number":
+                        mobile_number = field.get("value")
+
+                # 🛠️ Format complaint_date
+                created_on = issue.get("created_on")
+                complaint_date = None
+                if created_on:
+                    try:
+                        # Parse ISO datetime and format it
+                        dt = datetime.strptime(created_on, "%Y-%m-%dT%H:%M:%SZ")
+                        complaint_date = dt.strftime("%Y-%m-%d %H:%M:%S")  # 👈 this adds the space
+                    except Exception as e:
+                        complaint_date = created_on  # fallback if parsing fails
+
+                formatted_complaint = {
+                    "lorry_number": lorry_number,
+                    "mobile_number": mobile_number,
+                    "complaint_date": complaint_date,
+                }
+                formatted_complaints.append(formatted_complaint)
+
+            return formatted_complaints, None
+
+        except Exception as e:
+            return None, str(e)
+
+
+    @staticmethod
+    def get_attachment_urls(api_key, redmine_url, custom_fields):
+        try:
+            # Define the mapping of custom field names to their attachment IDs
+            file_fields = {
                 "Economic Viability Report": None,
-                "License Fee Receipt": None,
+                "License fee receipt": None,
                 "Detailed Mine Restoration Plan": None,
                 "Professional": None,
-                "Licensed Boundary Survey": None,
+                "Licensed boundary Survey": None,
                 "Payment Receipt": None
             }
 
-            for attachment in attachments:
-                filename = attachment.get("filename", "")
-                file_url = attachment.get("content_url", "")
+            # Extract attachment IDs from custom fields
+            for field in custom_fields:
+                field_name = field.get("name")
+                attachment_id = field.get("value")
 
-                # Mapping filenames to specific fields
-                for key in file_mapping.keys():
-                    if key.lower().replace(" ", "_") in filename.lower():
-                        file_mapping[key] = file_url
+                if field_name in file_fields and attachment_id.isdigit():
+                    file_fields[field_name] = attachment_id
 
-            return file_mapping
+            # Fetch URLs for valid attachment IDs
+            file_urls = {}
+            for field_name, attachment_id in file_fields.items():
+                if attachment_id:
+                    attachment_url = f"{redmine_url}/attachments/{attachment_id}.json"
+                    response = requests.get(
+                        attachment_url,
+                        headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                    )
+
+                    if response.status_code == 200:
+                        attachment_data = response.json().get("attachment", {})
+                        file_urls[field_name] = attachment_data.get("content_url", "")
+
+            return file_urls
 
         except Exception as e:
             return {}
-
 
 
     @staticmethod

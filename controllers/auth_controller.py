@@ -47,12 +47,13 @@ def login():
         return jsonify({'message': user_role}), 401
 
     # Extract user details
+    print("user data", user_data)
     user_id = user_data.get('id')
     
     username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
 
     # Generate access & refresh tokens
-    tokens = JWTUtils.create_jwt_token(user_id, user_role, api_key)
+    tokens = JWTUtils.create_jwt_token(user_id, user_role)
 
     return jsonify({
         'token': tokens['access_token'],
