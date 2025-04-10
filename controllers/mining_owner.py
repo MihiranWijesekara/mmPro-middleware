@@ -201,35 +201,32 @@ def ml_request():
     try:
         token = request.headers.get('Authorization')
         data = request.form.to_dict()
-        
-        # Get files from request
-        restoration_plan = request.files.get('Detailed Mine Restoration Plan')
-        payment_receipt = request.files.get('Payment Receipt')
-        
-        # Prepare attachments dictionary with temporary file paths
-        attachments = {}
-        
-        # Save files temporarily and add to attachments
-        if restoration_plan:
-            temp_path = os.path.join(tempfile.gettempdir(), restoration_plan.filename)
-            restoration_plan.save(temp_path)
-            attachments[72] = temp_path  # Field ID 72 for Detailed Mine Restoration Plan
-        
-        if payment_receipt:
-            temp_path = os.path.join(tempfile.gettempdir(), payment_receipt.filename)
-            payment_receipt.save(temp_path)
-            attachments[80] = temp_path  # Field ID 80 for Payment Receipt
 
+        # Initialize custom_fields list
+        custom_fields = []
+
+        # Handle file uploads through AuthService
+        detailed_mine_file = request.files.get('detailed_mine_plan') 
+        payment_receipt_file = request.files.get('payment_receipt')
+
+        detailed_mine_plan_id = AuthService.upload_file_to_redmine(detailed_mine_file) if detailed_mine_file else None
+        payment_receipt_id = AuthService.upload_file_to_redmine(payment_receipt_file) if payment_receipt_file else None
+
+        # Add file references to custom fields
+        if detailed_mine_plan_id:
+            custom_fields.append({"id": 72, "value": detailed_mine_plan_id})
+        if payment_receipt_id:
+            custom_fields.append({"id": 80, "value": payment_receipt_id})
+        
+        # Add other custom fields from data if needed
+        # custom_fields.extend(data.get('custom_fields', []))
+        
+        # Update data with custom_fields
+        data['custom_fields'] = custom_fields
+        
         # Call the service
-        issue, error = MLOwnerService.ml_request(data, token, attachments)
+        issue, error = MLOwnerService.ml_request(data, token)
         
-        # Clean up temporary files
-        for file_path in attachments.values():
-            try:
-                os.remove(file_path)
-            except:
-                pass
-
         if error:
             return jsonify({"error": error}), 400
         return jsonify(issue), 201
