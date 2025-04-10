@@ -114,22 +114,22 @@ class PoliceOfficerService:
 
     @staticmethod
     def create_complaint(vehicleNumber, userID, token):
-
+        print("the user id is", userID)
         phoneNumber = UserUtils.get_user_phone(userID)
-        print(phoneNumber)
+        print("the phone number is", phoneNumber)
 
         issue_data = {
                 'issue': {
-                    'project_id': 31,  
-                    'tracker_id': 26,  
+                    'project_id': 1,  
+                    'tracker_id': 6,  
                     'subject': "New Complaint",  
-                    'status_id': 11, 
+                    'status_id': 1, 
                     'priority_id': 2,  
-                    'assigned_to_id': 59,
+                    'assigned_to_id': 8,
                     'custom_fields': [
-                        {'id': 3, 'name': "Mobile Number", 'value': phoneNumber},
-                        {'id': 13, 'name': "Lorry Number", 'value': vehicleNumber},
-                        {'id': 68, 'name': "Role", 'value': "PoliceOfficer"}
+                        {'id':66, 'name': "Mobile Number", 'value': phoneNumber},
+                        {'id':53, 'name': "Lorry Number", 'value': vehicleNumber},
+                        {'id':67, 'name': "Role", 'value': "PoliceOfficer"}
                     ]
                 }
             }

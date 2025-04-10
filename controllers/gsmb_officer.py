@@ -247,7 +247,7 @@ def get_mlowners():
         if error:
             return jsonify({"error": error}), 500
 
-        return jsonify({"success": True, "data": mlowners_details}), 200
+        return jsonify(mlowners_details)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -409,6 +409,17 @@ def get_mining_licenses():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@gsmb_officer_bp.route('/get-complaints', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_complaints():
+    token = request.headers.get('Authorization')
+    complaints, error = GsmbOfficerService.get_complaints(token)
+    if error:
+        return {"success": False, "message": error}
+    return {"success": True, "data": complaints}
+
 
 
 

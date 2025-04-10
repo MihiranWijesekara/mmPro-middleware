@@ -47,12 +47,13 @@ def login():
         return jsonify({'message': user_role}), 401
 
     # Extract user details
+    print("user data", user_data)
     user_id = user_data.get('id')
     
     username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
 
     # Generate access & refresh tokens
-    tokens = JWTUtils.create_jwt_token(user_id, user_role, api_key)
+    tokens = JWTUtils.create_jwt_token(user_id, user_role)
 
     return jsonify({
         'token': tokens['access_token'],
@@ -205,6 +206,7 @@ def register_police_officer():
         nic_back_file = request.files.get('nic_back')
         work_id_file = request.files.get('work_id')
 
+
         nic_front_id = AuthService.upload_file_to_redmine(nic_front_file) if nic_front_file else None
         nic_back_id = AuthService.upload_file_to_redmine(nic_back_file) if nic_back_file else None
         work_id_file_id = AuthService.upload_file_to_redmine(work_id_file) if work_id_file else None
@@ -266,6 +268,7 @@ def register_gsmb_officer():
         nic_front_file = request.files.get('nic_front') 
         nic_back_file = request.files.get('nic_back')
         work_id_file = request.files.get('work_id')
+
 
         nic_front_id = AuthService.upload_file_to_redmine(nic_front_file) if nic_front_file else None
         nic_back_id = AuthService.upload_file_to_redmine(nic_back_file) if nic_back_file else None
