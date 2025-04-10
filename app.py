@@ -1,5 +1,5 @@
 from flask import Flask
-from controllers import auth_bp, mining_owner_bp, gsmb_officer_bp, police_officer_bp, general_public_bp, gsmb_management_bp
+from controllers import auth_bp, mining_owner_bp, gsmb_officer_bp, police_officer_bp, general_public_bp, mining_enginer_bp, gsmb_management_bp
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -21,6 +21,7 @@ CORS(app, resources={r"/*": {
 app.config.from_pyfile('.env')
 
 # Register Blueprints for each role-based controller
+app.register_blueprint(mining_enginer_bp, url_prefix='/mining-enginer')
 app.register_blueprint(mining_owner_bp, url_prefix='/mining-owner')
 app.register_blueprint(gsmb_officer_bp, url_prefix='/gsmb-officer')
 app.register_blueprint(police_officer_bp, url_prefix='/police-officer')

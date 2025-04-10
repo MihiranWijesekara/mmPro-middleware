@@ -644,3 +644,116 @@ class MLOwnerService:
             print(f"Unexpected error: {str(e)}")
         return None, f"Processing error: {str(e)}"
     
+
+
+    @staticmethod
+    def ml_request(data, token, attachments=None):
+        try:
+            # Get the Redmine URL from environment variables
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Redmine URL is not configured"
+
+            print("Redmine URL:", REDMINE_URL)
+
+            # Get the API key from the token
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+            if not API_KEY:
+                return None, "Invalid or missing API key"
+            
+            headers = {
+                "Content-Type": "application/json",
+                "X-Redmine-API-Key": API_KEY
+            }
+    
+            # Prepare the payload for the ML request
+            payload = {
+                "issue": {
+                    "project_id": data.get("project_id", 1),
+                    "tracker_id": data.get("tracker_id", 4),
+                    "status_id": data.get("status_id", 8),
+                    "priority_id": data.get("priority_id", 2),
+                    "subject": data.get("subject", "ML Request"),
+                    "description": data.get("description", ""),
+                    "custom_fields": [
+                        {"id": 19, "value": data.get("exploration_nb", "")},
+                        {"id": 28, "value": data.get("land_name", "")},  
+                        {"id": 29, "value": data.get("land_owner_name", "")},
+                        {"id": 30, "value": data.get("village_name", "")},
+                        {"id": 31, "value": data.get("grama_niladari", "")},
+                        {"id": 32, "value": data.get("divisional_secretary_division", "")},
+                        {"id": 33, "value": data.get("administrative_district", "")},              
+                        {"id": 72, "value": ""}, 
+                        {"id": 80, "value": ""}                      
+                    ]
+                }
+            }
+
+            # First create the issue
+            response = requests.post(f"{REDMINE_URL}/issues.json", json=payload, headers=headers)
+            
+            if response.status_code != 201:
+                return None, f"Failed to create issue: {response.text}"
+        
+            issue_id = response.json()["issue"]["id"]
+            
+
+            if attachments:
+                for custom_field_id, file_path in attachments.items():
+                    try:
+                        # Prepare file upload headers - same as in your working upload_file_to_redmine
+                        upload_headers = {
+                            "X-Redmine-API-Key": API_KEY, 
+                            "Accept": "application/json"
+                        }
+
+                        filename = os.path.basename(file_path)
+                        upload_url = f"{REDMINE_URL}/uploads.json?filename={filename}"
+                    
+                        with open(file_path, 'rb') as f:
+                            upload_response = requests.post(
+                                upload_url,
+                                headers=upload_headers,
+                                data=f
+                            )
+                
+                        if upload_response.status_code != 201:
+                            print(f"Failed to upload file for field {custom_field_id}: {upload_response.text}")
+                            continue
+                
+                        upload_token = upload_response.json().get("upload", {}).get("token")
+                        if not upload_token:
+                            print(f"No upload token received for field {custom_field_id}")
+                            continue
+                
+                        # Update the issue with the attachment token
+                        update_payload = {
+                            "issue": {
+                                "custom_fields": [
+                                    {
+                                        "id": int(custom_field_id),
+                                        "value": upload_token
+                                    }
+                                ]
+                            }
+                        }
+                
+                        update_response = requests.put(
+                            f"{REDMINE_URL}/issues/{issue_id}.json",
+                            json=update_payload,
+                            headers=headers
+                        )
+                
+                        if update_response.status_code != 200:
+                            print(f"Failed to update field {custom_field_id}: {update_response.text}")
+            
+                    except Exception as e:
+                        print(f"Error processing attachment for field {custom_field_id}: {str(e)}")
+    
+            return response.json(), None
+
+        except requests.exceptions.RequestException as e:
+            return None, f"Request failed: {str(e)}"
+        except Exception as e:
+            return None, f"Unexpected error: {str(e)}"
+                

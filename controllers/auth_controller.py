@@ -265,7 +265,7 @@ def register_gsmb_officer():
         if not all([login, first_name, last_name, email, password, nic_number, mobile_number, designation]):
             return jsonify({"error": "Missing required fields"}), 400
 
-        nic_front_file = request.files.get('nic_front')
+        nic_front_file = request.files.get('nic_front') 
         nic_back_file = request.files.get('nic_back')
         work_id_file = request.files.get('work_id')
 

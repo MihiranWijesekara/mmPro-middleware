@@ -1,5 +1,8 @@
+import os
+import tempfile
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required,check_token
+from services.auth_service import AuthService
 from services.mining_owner_service import MLOwnerService
 
 # Define the Blueprint for mining_owner
@@ -185,6 +188,51 @@ def user_detail(user_id):
             return jsonify({"error": error}), 500
 
         return jsonify({"user_detail": detail})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@mining_owner_bp.route('/ml-request', methods=['POST'])
+@check_token
+@role_required(['MLOwner'])
+def ml_request():
+    try:
+        token = request.headers.get('Authorization')
+        data = request.form.to_dict()
+        
+        # Get files from request
+        restoration_plan = request.files.get('Detailed Mine Restoration Plan')
+        payment_receipt = request.files.get('Payment Receipt')
+        
+        # Prepare attachments dictionary with temporary file paths
+        attachments = {}
+        
+        # Save files temporarily and add to attachments
+        if restoration_plan:
+            temp_path = os.path.join(tempfile.gettempdir(), restoration_plan.filename)
+            restoration_plan.save(temp_path)
+            attachments[72] = temp_path  # Field ID 72 for Detailed Mine Restoration Plan
+        
+        if payment_receipt:
+            temp_path = os.path.join(tempfile.gettempdir(), payment_receipt.filename)
+            payment_receipt.save(temp_path)
+            attachments[80] = temp_path  # Field ID 80 for Payment Receipt
+
+        # Call the service
+        issue, error = MLOwnerService.ml_request(data, token, attachments)
+        
+        # Clean up temporary files
+        for file_path in attachments.values():
+            try:
+                os.remove(file_path)
+            except:
+                pass
+
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(issue), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
