@@ -9,6 +9,7 @@ from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
 from utils.limit_utils import LimitUtils
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 
@@ -682,9 +683,8 @@ class MLOwnerService:
                         {"id": 30, "value": data.get("village_name", "")},
                         {"id": 31, "value": data.get("grama_niladari", "")},
                         {"id": 32, "value": data.get("divisional_secretary_division", "")},
-                        {"id": 33, "value": data.get("administrative_district", "")},              
-                        {"id": 72, "value": ""}, 
-                        {"id": 80, "value": ""}                      
+                        {"id": 33, "value": data.get("administrative_district", "")},   
+                        *data.get("custom_fields", [])                              
                     ]
                 }
             }
@@ -699,24 +699,23 @@ class MLOwnerService:
             
 
             if attachments:
-                for custom_field_id, file_path in attachments.items():
+                for custom_field_id, file_obj  in attachments.items():
                     try:
                         # Prepare file upload headers - same as in your working upload_file_to_redmine
                         upload_headers = {
                             "X-Redmine-API-Key": API_KEY, 
-                            "Accept": "application/json"
+                           "Content-Type": "application/octet-stream"
                         }
 
-                        filename = os.path.basename(file_path)
+                        filename = secure_filename(file_obj.filename)
                         upload_url = f"{REDMINE_URL}/uploads.json?filename={filename}"
                     
-                        with open(file_path, 'rb') as f:
-                            upload_response = requests.post(
-                                upload_url,
-                                headers=upload_headers,
-                                data=f
-                            )
-                
+                        upload_response = requests.post(
+                        upload_url,
+                        headers=upload_headers,
+                        data=file_obj.stream.read()
+                        )
+                 
                         if upload_response.status_code != 201:
                             print(f"Failed to upload file for field {custom_field_id}: {upload_response.text}")
                             continue
@@ -756,4 +755,5 @@ class MLOwnerService:
             return None, f"Request failed: {str(e)}"
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
+        
                 
