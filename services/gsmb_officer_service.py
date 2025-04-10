@@ -250,7 +250,7 @@ class GsmbOfficerService:
                 }
 
                 formatted_mls.append(formatted_ml)
-
+ 
             return formatted_mls, None
 
         except Exception as e:
