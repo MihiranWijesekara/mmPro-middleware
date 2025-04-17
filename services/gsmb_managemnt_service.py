@@ -656,4 +656,120 @@ class GsmbManagmentService:
         
             return due_date < current_date
         except Exception:
-            return False  # In case of any parsing error, consider it not expired    
+            return False  # In case of any parsing error, consider it not expired
+
+
+
+    @staticmethod
+    def unactive_gsmb_officers(token):
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL", "http://gsmb.aasait.lk")
+            api_key = JWTUtils.get_api_key_from_token(token)
+
+            if not api_key:
+                return None, "API Key is missing"
+
+            headers = {
+                "X-Redmine-API-Key": api_key,
+                "Content-Type": "application/json",
+                "User-Agent": "GSMB-Management-Service/1.0"
+            }
+
+            params = {"status": 3, "include": "custom_fields"}
+            request_url = f"{REDMINE_URL}/users.json?status=3"
+
+        # Debug output
+            print(f"\n=== DEBUG INFORMATION ===")
+            print(f"Request URL: {request_url}")
+            print(f"Using API Key: {api_key[:5]}...{api_key[-5:]}")
+            print(f"Request Headers: {headers}\n")
+
+            response = requests.get(
+                f"{REDMINE_URL}/users.json",
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+
+        # Debug response
+            print(f"Response Status: {response.status_code}")
+            print(f"Response Headers: {response.headers}\n")
+
+            if response.status_code != 200:  # Changed from 201 to 200 for GET requests
+                print(f"Full Error Response: {response.text}")
+                return None, f"API request failed (Status {response.status_code})"
+
+            users = response.json().get("users", [])
+        
+        # Filter GSMB officers
+            officers = [
+                {
+                "id": user["id"],
+                "name": f"{user['firstname']} {user['lastname']}".strip(),
+                "email": user["mail"],
+                "status": user["status"],
+                "custom_fields": {
+                    field["name"]: field["value"]
+                    for field in user.get("custom_fields", [])
+                    if field.get("value")
+                }
+                }
+                for user in users
+               # if any(
+               #     field.get("id") == 89 and field.get("value") == "gsmbOfficer"
+               #     for field in user.get("custom_fields", [])
+               # )
+            ]
+
+            print(f"Found {len(officers)} GSMB officers")
+            return officers, None
+         
+        except requests.exceptions.RequestException as e:
+            print(f"Request Exception: {str(e)}")
+            return None, f"Network error occurred"
+        except Exception as e:
+            print(f"Unexpected Error: {str(e)}")
+            return None, f"Processing error occurred"    
+        
+    @staticmethod
+    def activate_gsmb_officer(token,id,update_data):
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+
+            if not REDMINE_URL or not API_KEY:
+                return None, "Redmine URL or API Key is missing"
+            
+            payload = {
+                "user": {
+                    "status": 1  # Set status to active
+                }
+            }
+
+            headers = {
+            "Content-Type": "application/json",
+            "X-Redmine-API-Key": API_KEY
+            }
+
+            response = requests.put(
+            f"{REDMINE_URL}/users/{id}.json",
+            json=payload,
+            headers=headers
+            )
+
+            if response.status_code == 201:
+                return response.json(), None
+            else:
+                error_msg = f"Failed to User Active. Status: {response.status_code}"
+                try:
+                    error_data = response.json()
+                    error_msg += f", Error: {error_data.get('errors', 'Unknown error')}"
+                except:
+                    error_msg += f", Response: {response.text}"
+                return None, error_msg
+
+        except requests.exceptions.RequestException as e:
+            return None, f"Request failed: {str(e)}"
+        except Exception as e:
+            return None, f"Unexpected error: {str(e)}"
+            

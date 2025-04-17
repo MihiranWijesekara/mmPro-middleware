@@ -53,3 +53,4 @@ class MiningEnginerService:
             return None, f"Request failed: {str(e)}"
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
+        

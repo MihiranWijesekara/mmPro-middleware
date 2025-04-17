@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from middleware.auth_middleware import role_required,check_token
 from services.gsmb_managemnt_service import GsmbManagmentService
 
@@ -158,4 +158,52 @@ def mining_license_count():
     return jsonify({"issues": issues})  
 
 
+@gsmb_management_bp.route('/unactive-gsmb-officers', methods=['GET'])
+@check_token
+@role_required(['GSMBManagement'])
+def unactive_gsmb_officers():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization token is required"}), 401
+
+    # Corrected spelling to GsmbManagementService
+    officers, error = GsmbManagmentService.unactive_gsmb_officers(token)
     
+    if error:
+        # Include more detailed error logging
+        current_app.logger.error(f"Error fetching GSMB officers: {error}")
+        return jsonify({"error": error}), 500
+
+    return jsonify({
+        "officers": officers,
+        "count": len(officers) if officers else 0
+    }), 200
+    
+
+@gsmb_management_bp.route('/active-gsmb-officers/<int:id>', methods=['PUT'])
+@check_token
+@role_required(['GSMBManagement'])
+def active_gsmb_officers(id):  # Parameter name should match the route parameter 'id'
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization token is required"}), 401
+
+    try:
+        # Activate the officer by changing status from 3 to 1
+        success, error = GsmbManagmentService.activate_gsmb_officer(token, id, {"status": 1})
+        
+        if error:
+            current_app.logger.error(f"Error activating GSMB officer {id}: {error}")
+            return jsonify({"error": error}), 500
+
+        return jsonify({
+            "success": True,
+            "message": f"Officer {id} activated successfully",
+            "id": id,
+            "new_status": 1
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error in active_gsmb_officers: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
