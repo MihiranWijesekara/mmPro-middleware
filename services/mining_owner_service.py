@@ -40,7 +40,8 @@ class MLOwnerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4  # ML tracker ID
+                "tracker_id": 4,  # ML tracker ID
+                "status_id": 7 
             }
 
             headers = {
@@ -129,7 +130,8 @@ class MLOwnerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4  # ML tracker ID
+                "tracker_id": 4,  # ML tracker ID
+                "status_id": 7 
             }
 
             headers = {
@@ -674,6 +676,8 @@ class MLOwnerService:
                     "tracker_id": data.get("tracker_id", 4),
                     "status_id": data.get("status_id", 8),
                     "priority_id": data.get("priority_id", 2),
+                    "assigned_to_id": data.get("assigned_to"),  # Get from data dictionary
+                    "author_id": data.get("author"), 
                     "subject": data.get("subject", "ML Request"),
                     "description": data.get("description", ""),
                     "custom_fields": [
@@ -684,6 +688,7 @@ class MLOwnerService:
                         {"id": 31, "value": data.get("grama_niladari", "")},
                         {"id": 32, "value": data.get("divisional_secretary_division", "")},
                         {"id": 33, "value": data.get("administrative_district", "")},   
+                        {"id": 92, "value": data.get("google_location", "")}, 
                         *data.get("custom_fields", [])                              
                     ]
                 }

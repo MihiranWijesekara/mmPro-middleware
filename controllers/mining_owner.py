@@ -207,19 +207,20 @@ def ml_request():
 
         # Handle file uploads through AuthService
         detailed_mine_file = request.files.get('detailed_mine_plan') 
-        payment_receipt_file = request.files.get('payment_receipt')
+        payment_receipt_file = request.files.get('payment_receipt')  #Deed and Survey Plan
+        Deed_plan_file = request.files.get('Deed_plan')
 
         detailed_mine_plan_id = AuthService.upload_file_to_redmine(detailed_mine_file) if detailed_mine_file else None
         payment_receipt_id = AuthService.upload_file_to_redmine(payment_receipt_file) if payment_receipt_file else None
+        Deed_plan_id = AuthService.upload_file_to_redmine(Deed_plan_file) if Deed_plan_file else None
 
         # Add file references to custom fields
         if detailed_mine_plan_id:
             custom_fields.append({"id": 72, "value": detailed_mine_plan_id})
         if payment_receipt_id:
             custom_fields.append({"id": 80, "value": payment_receipt_id})
-        
-        # Add other custom fields from data if needed
-        # custom_fields.extend(data.get('custom_fields', []))
+        if Deed_plan_id:
+            custom_fields.append({"id": 90, "value": Deed_plan_id})    
         
         # Update data with custom_fields
         data['custom_fields'] = custom_fields
