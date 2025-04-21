@@ -334,6 +334,7 @@ class GsmbOfficerService:
                         complaint_date = created_on  # fallback if parsing fails
 
                 formatted_complaint = {
+                    "id": issue.get("id"), 
                     "lorry_number": lorry_number,
                     "mobile_number": mobile_number,
                     "complaint_date": complaint_date,
@@ -429,6 +430,107 @@ class GsmbOfficerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+        
+    @staticmethod
+    def upload_file_to_redmine(file):
+        print("inside file upload")
+        """
+        Uploads a file to Redmine and returns the attachment ID.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        
+
+        url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
+
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type":"application/octet-stream",
+            "Accept": "application/json"
+        }
+
+
+        response = requests.post(url, headers=headers, data=file.stream)
+
+        if response.status_code == 201:
+             return response.json().get("upload", {}).get("id")   # Attachment ID
+        else:
+            return None  # Handle failed upload
+
+
+    @staticmethod
+    def upload_mining_license(token, data):
+        try:
+            # Map custom field IDs from your tracker
+            custom_fields = [
+                        {"id": 19, "value": data.get("exploration_licence_no")},
+                        {"id": 28, "value": data.get("land_name")},
+                        {"id": 30, "value": data.get("village_name")},
+                        {"id": 31, "value": data.get("grama_niladhari_division")},
+                        {"id": 32, "value": data.get("divisional_secretary_division")},
+                        {"id": 33, "value": data.get("administrative_district")},
+                        {"id": 66, "value": data.get("mobile_number")},
+                        {"id": 29, "value": data.get("land_owner_name")},
+                        {"id": 18, "value": data.get("royalty")},
+                        {"id": 34, "value": data.get("capacity")},
+                        {"id": 63, "value": data.get("used")},
+                        {"id": 64, "value": data.get("remaining")},
+                        {"id": 92, "value": data.get("google_location")},
+                    ]
+            # Attachments (file tokens if present)
+            file_field_ids = {
+                "economic_viability_report": 70,
+                "detailed_mine_restoration_plan": 72,
+                "deed_and_survey_plan":90,
+                "payment_receipt": 80,
+                # "license_fee_receipt": 81  # example if you've added this to tracker
+            }
+
+            for key, field_id in file_field_ids.items():
+                if data.get(key):
+                    custom_fields.append({
+                        "id": field_id,
+                        "value": data[key]
+                    })
+
+            assignee_id = int(data["assignee_id"]) if data.get("assignee_id") else None
+
+            # Prepare issue payload
+            issue_payload = {
+                "issue": {
+                    "project_id": 1,
+                    "tracker_id": 4,
+                    "subject": data["subject"],
+                    "start_date": data["start_date"],
+                    "due_date": data["due_date"],
+                    "description": f"Mining license submitted by {data.get('author', 'GSMB Officer')}",
+                    "assigned_to_id":assignee_id,
+                    "custom_fields": custom_fields
+                }
+            }
+
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+
+            headers = {
+                "X-Redmine-API-Key": user_api_key,
+                "Content-Type": "application/json"
+            }
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",  # Use formatted string
+                headers=headers,
+                json=issue_payload
+            )
+
+            if response.status_code == 201:
+                return True, None
+            else:
+                return False, f"Redmine issue creation failed: {response.status_code} - {response.text}"
+
+        except Exception as e:
+            return False, str(e)
         
 
     # @staticmethod

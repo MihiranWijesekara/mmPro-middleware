@@ -47,7 +47,7 @@ def login():
         return jsonify({'message': user_role}), 401
 
     # Extract user details
-    print("user data", user_data)
+    # print("user data", user_data)
     user_id = user_data.get('id')
     
     username = f"{user_data.get('firstname')} {user_data.get('lastname')}"

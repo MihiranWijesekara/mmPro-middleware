@@ -443,6 +443,78 @@ def get_mining_license_counts():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@gsmb_officer_bp.route('/upload-mining-license', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def upload_mining_license():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Get form fields
+        data = {
+            "subject": request.form.get('subject'),
+            "start_date": request.form.get('start_date'),
+            "due_date": request.form.get('due_date'),
+            "administrative_district": request.form.get('administrative_district'),
+            "divisional_secretary_division": request.form.get('divisional_secretary_division'),
+            "grama_niladhari_division": request.form.get('grama_niladhari_division'),
+            "village_name": request.form.get('village_name'),
+            "land_name": request.form.get('land_name'),
+            "exploration_licence_no": request.form.get('exploration_licence_no'),
+            "author": request.form.get('author'),
+            "mobile_number": request.form.get('mobile_number'),
+            "land_owner_name": request.form.get('land_owner_name'),
+            "royalty": request.form.get('royalty'),
+            "capacity": request.form.get('capacity'),
+            "used": request.form.get('used'),
+            "remaining": request.form.get('remaining'),
+            "google_location": request.form.get('google_location'),
+            "assignee_id": request.form.get('assignee_id') 
+        }
+
+        # Check for required fields
+        required_fields = ['subject', 'start_date', 'administrative_district', 'divisional_secretary_division',
+                           'grama_niladhari_division', 'village_name', 'land_name', 'exploration_licence_no', 'author']
+        if not all(data[field] for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Get optional file uploads
+        detailed_plan_file = request.files.get('detailed_mine_restoration_plan')
+        economic_report_file = request.files.get('economic_viability_report')
+        boundary_survey_file = request.files.get('licensed_boundary_survey')
+        license_fee_receipt_file = request.files.get('license_fee_receipt')
+        payment_receipt_file = request.files.get('payment_receipt')
+
+        # Upload files to Redmine or your storage method
+        file_fields = {
+            "detailed_mine_restoration_plan": detailed_plan_file,
+            "economic_viability_report": economic_report_file,
+            # "licensed_boundary_survey": boundary_survey_file,
+            "deed_and_survey_plan": boundary_survey_file,
+            # "license_fee_receipt": license_fee_receipt_file,
+            "payment_receipt": payment_receipt_file
+        }
+
+        for field_name, file in file_fields.items():
+            if file:
+                file_id_or_url = GsmbOfficerService.upload_file_to_redmine(file)
+                data[field_name] = file_id_or_url
+
+        # Submit to service layer
+        success, error = GsmbOfficerService.upload_mining_license(token, data)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Mining license uploaded successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # @gsmb_officer_bp.route('/get-distance', methods=['POST'])
 # @check_token
