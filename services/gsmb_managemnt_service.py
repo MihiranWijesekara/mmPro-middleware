@@ -691,38 +691,48 @@ class GsmbManagmentService:
                 timeout=10
             )
 
-        # Debug response
-            print(f"Response Status: {response.status_code}")
-            print(f"Response Headers: {response.headers}\n")
-
             if response.status_code != 200:  # Changed from 201 to 200 for GET requests
                 print(f"Full Error Response: {response.text}")
                 return None, f"API request failed (Status {response.status_code})"
 
             users = response.json().get("users", [])
+           # custom_fields = issue.get("custom_fields", [])  # Extract custom fields
+           # attachment_urls = GsmbManagmentService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
         
-        # Filter GSMB officers
-            officers = [
-                {
-                "id": user["id"],
-                "name": f"{user['firstname']} {user['lastname']}".strip(),
-                "email": user["mail"],
-                "status": user["status"],
-                "custom_fields": {
+            # Filter GSMB officers
+            officers = []
+            for user in users:
+                custom_fields = user.get("custom_fields", [])
+            
+                # Convert custom fields to dictionary
+                custom_fields_dict = {
                     field["name"]: field["value"]
-                    for field in user.get("custom_fields", [])
+                    for field in custom_fields
                     if field.get("value")
                 }
+            
+                # Get attachment URLs
+                attachment_urls = GsmbManagmentService.get_attachment_urls(api_key, REDMINE_URL, custom_fields)
+            
+                # Create officer object following your response pattern
+                officer = {
+                    "id": user["id"],
+                    "name": f"{user.get('firstname', '')} {user.get('lastname', '')}".strip(),
+                    "email": user.get("mail", ""),
+                    "status": user.get("status", 3),  # Default to inactive (3)
+                    "custom_fields": {
+                        "Designation": custom_fields_dict.get("Designation"),
+                        "Mobile Number": custom_fields_dict.get("Mobile Number"),
+                        "NIC back image": attachment_urls.get("NIC back image") or custom_fields_dict.get("NIC back image"),
+                        "NIC front image": attachment_urls.get("NIC front image") or custom_fields_dict.get("NIC front image"),
+                        "National Identity Card": custom_fields_dict.get("National Identity Card"),
+                        "User Type": custom_fields_dict.get("User Type"),
+                        "work ID": attachment_urls.get("work ID") or custom_fields_dict.get("work ID")
+                    }
                 }
-                for user in users
-               # if any(
-               #     field.get("id") == 89 and field.get("value") == "gsmbOfficer"
-               #     for field in user.get("custom_fields", [])
-               # )
-            ]
+                officers.append(officer)
 
-            print(f"Found {len(officers)} GSMB officers")
-            return officers, None
+            return {"count": len(officers), "officers": officers}, None
          
         except requests.exceptions.RequestException as e:
             print(f"Request Exception: {str(e)}")
@@ -772,4 +782,51 @@ class GsmbManagmentService:
             return None, f"Request failed: {str(e)}"
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
+        
+
+    @staticmethod
+    def get_attachment_urls(api_key, redmine_url, custom_fields):
+        try:
+            # Define the mapping of custom field names to their attachment IDs
+            file_fields = {
+                "NIC back image": None,
+                "NIC front image": None,
+                "work ID": None
+                
+            }
+
+            # Extract attachment IDs from custom fields
+            for field in custom_fields:
+                field_name = field.get("name")
+                attachment_id = field.get("value")
+
+                if field_name in file_fields and attachment_id.isdigit():
+                    file_fields[field_name] = attachment_id
+
+            # Fetch URLs for valid attachment IDs
+            file_urls = {}
+            for field_name, attachment_id in file_fields.items():
+                if attachment_id:
+                    attachment_url = f"{redmine_url}/attachments/{attachment_id}.json"
+                    response = requests.get(
+                        attachment_url,
+                        headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                    )
+
+                    if response.status_code == 200:
+                        attachment_data = response.json().get("attachment", {})
+                        file_urls[field_name] = attachment_data.get("content_url", "")
+
+            return file_urls
+
+        except Exception as e:
+            return {}
+    
+    @staticmethod
+    def get_custom_field_value(custom_fields, field_name):
+        """Helper method to get value from custom fields"""
+        for field in custom_fields:
+            if field.get("name") == field_name:
+                return field.get("value")
+        return None
             
