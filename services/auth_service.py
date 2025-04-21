@@ -46,7 +46,7 @@ class AuthService:
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
-                print(f"Checking project: {project_name}")
+                # print(f"Checking project: {project_name}")
                 if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
