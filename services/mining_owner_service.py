@@ -321,6 +321,12 @@ class MLOwnerService:
 
             time_hours = time_result.get("time_hours", 0)
 
+            print("the token is ", token)
+            result = JWTUtils.decode_jwt_and_get_user_id(token)
+
+            user_id = result['user_id']
+            
+            print("assinging  id : " , user_id)
             # Prepare the payload for the TPL request
             payload = {
                 "issue": {
@@ -330,6 +336,7 @@ class MLOwnerService:
                     "priority_id": 2,
                     "subject": "TPL",
                     "start_date": data.get("start_date", date.today().isoformat()),
+                    "assigned_to_id": user_id,
                    # "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
                     "estimated_hours" :time_hours,
                     "custom_fields": [
@@ -381,7 +388,15 @@ class MLOwnerService:
                 print("first request ins")
                 url = f"https://geocode.maps.co/search?q={city_name}&format=json"
                 response_first = requests.get(url, timeout=1)
-                response = response_first.json()        
+                response = response_first.json()   
+                if response_first.status_code != 200:
+                  raise ValueError(f"Geocoding failed with status code {response_first.status_code}, body: {response_first.text}")
+
+                try:
+                    response = response_first.json()
+                except ValueError as ve:
+                    raise ValueError(f"Invalid JSON response: {response_first.text}")  
+                   
                 if response:
                     lat = float(response[0]['lat'])
                     lon = float(response[0]['lon'])
