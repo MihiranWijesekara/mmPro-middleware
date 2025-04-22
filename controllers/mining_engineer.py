@@ -160,7 +160,7 @@ def miningEngineer_approve(issue_id):
         if error:
             return {"error": error}, 500
         
-        return {"message": "Appointment updated successfully", "issue": result}, 200
+        return {"message": "Mining license updated successfully", "issue": result}, 200
     
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}, 500
