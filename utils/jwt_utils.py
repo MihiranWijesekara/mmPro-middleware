@@ -129,6 +129,34 @@ class JWTUtils:
         except Exception as e:
             return {'message': f'Error decoding token: {str(e)}'}
 
+    @staticmethod
+    def decode_jwt_and_get_user_id(token):
+        try:
+            # Strip "Bearer " prefix if present
+            token = token.split(" ")[1] if " " in token else token
+
+            # Decode the JWT
+            payload = jwt.decode(
+                token,
+                Config.SECRET_KEY,
+                algorithms=[Config.JWT_ALGORITHM],
+                options={"verify_exp": True}
+            )
+
+            # Extract user ID
+            user_id = payload.get("user_id")
+            if user_id is not None:
+                return {'success': True, 'user_id': user_id}
+            else:
+                return {'success': False, 'message': 'User ID not found in token'}
+
+        except jwt.ExpiredSignatureError:
+            return {'success': False, 'message': 'Token has expired'}
+        except jwt.InvalidTokenError:
+            return {'success': False, 'message': 'Invalid token'}
+        except Exception as e:
+            return {'success': False, 'message': f'Error decoding token: {str(e)}'}
+
     # @staticmethod
     # def get_api_key_from_token(token):
     #     try:
