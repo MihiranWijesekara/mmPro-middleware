@@ -32,3 +32,44 @@ def get_dg_pending_licenses():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@director_general_bp.route('/dg-approve-licenses/<int:issue_id>', methods=['PUT'])
+@check_token
+@role_required(['DG'])
+def dg_approve_licenses(issue_id):
+    try:
+        # Get the token from the Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization header is missing"}), 401
+
+        token = auth_header.replace("Bearer ", "").strip()
+        if not token:
+            return jsonify({"error": "Authorization token is invalid"}), 400
+
+        # Check Content-Type header
+        if request.content_type != 'application/json':
+            return jsonify({"error": "Content-Type must be application/json"}), 415
+
+        # Get update data from request body
+        update_data = request.get_json()
+        if update_data is None:  # This happens if JSON is malformed
+            return jsonify({"error": "Invalid JSON data"}), 400
+        if not update_data:  # Empty JSON
+            return jsonify({"error": "No update data provided"}), 400
+
+        # Call the service to approve the license
+        result, error = DirectorGeneralService.dg_approve_licenses(
+            token=token,
+            issue_id=issue_id,
+            update_data=update_data
+        )
+
+        if error:
+            return jsonify({"error": error}), 500 if "Server error" in error else 400
+
+        return jsonify({"success": True, "data": result}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
