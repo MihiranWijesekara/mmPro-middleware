@@ -160,8 +160,52 @@ def miningEngineer_approve(issue_id):
         if error:
             return {"error": error}, 500
         
-        return {"message": "Appointment updated successfully", "issue": result}, 200
+        return {"message": "Mining license updated successfully", "issue": result}, 200
     
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}, 500
+    
+
+@mining_enginer_bp.route('/miningEngineer-reject/<int:issue_id>', methods=['PUT'])
+@check_token
+@role_required(['miningEngineer'])
+def miningEngineer_reject(issue_id):                               
+    try:
+        # Extract token from headers
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return {"error": "Authorization token is missing"}, 400
+        
+        token = auth_header.replace("Bearer ", "")
+        if not token:
+            return {"error": "Authorization token is invalid"}, 400
+        
+        # Get rejection report file
+        me_report_file = request.files.get('me_report') 
+
+        # Upload the file to Redmine and get the file ID
+        me_report_file_id = AuthService.upload_file_to_redmine(me_report_file) if me_report_file else None
+
+        # Get form data
+        update_data = {
+            "status_id": 6,  # Rejected status
+            "me_comment": request.form.get("me_comment", ""),
+            "me_report": me_report_file_id
+        }
+        
+        # Call service to update the issue in Redmine
+        result, error = MiningEnginerService.miningEngineer_reject(
+            token=token,
+            issue_id=issue_id,
+            update_data=update_data
+        )
+        
+        if error:
+            return {"error": error}, 500
+        
+        return {"message": "Mining license rejected successfully", "issue": result}, 200
+    
+    except Exception as e:
+        return {"error": f"Unexpected error: {str(e)}"}, 500
+
    
