@@ -552,8 +552,6 @@ class AuthService:
             return None, response.json()
         
 
-
-
     # @staticmethod
     # def create_jwt_token(user_id,user_role, api_key):
     #     """Utility function to create a JWT token."""
