@@ -21,7 +21,7 @@ CORS(app, resources={r"/*": {
 app.config.from_pyfile('.env')
 
 # Register Blueprints for each role-based controller
-app.register_blueprint(mining_enginer_bp, url_prefix='/mining-enginer')
+app.register_blueprint(mining_enginer_bp, url_prefix='/mining-engineer')
 app.register_blueprint(mining_owner_bp, url_prefix='/mining-owner')
 app.register_blueprint(gsmb_officer_bp, url_prefix='/gsmb-officer')
 app.register_blueprint(police_officer_bp, url_prefix='/police-officer')
