@@ -395,3 +395,56 @@ class MiningEnginerService:
             return None, f"Request failed: {str(e)}"
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
+        
+
+    @staticmethod
+    def miningEngineer_reject(token, issue_id, update_data):   
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+
+            if not REDMINE_URL or not API_KEY:
+                return None, "Redmine URL or API Key is missing"
+            
+            # Prepare payload for rejection
+            payload = {
+                "issue": {
+                    "status_id": update_data.get("status_id", 6),  # Rejected
+                    "custom_fields": [
+                        {
+                            "id": 97,  # MeComment(F)
+                            "value": update_data.get("me_comment", "")
+                        },
+                        {
+                            "id": 98,  # MeReport(F)
+                            "value": update_data.get("me_report")
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                "Content-Type": "application/json",
+                "X-Redmine-API-Key": API_KEY
+            }
+
+            # Send update to Redmine
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                json=payload,
+                headers=headers
+            )
+
+            if response.status_code in (200, 204):
+                try:
+                    return (response.json(), None) if response.content else ({"status": "success"}, None)
+                except ValueError:
+                    return {"status": "success"}, None
+            else:
+                return None, f"Redmine API error: {response.status_code} - {response.text}"
+            
+        except requests.exceptions.RequestException as e:
+            return None, f"Request failed: {str(e)}"
+        except Exception as e:
+            return None, f"Unexpected error: {str(e)}"
+
