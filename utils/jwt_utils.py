@@ -58,7 +58,7 @@ class JWTUtils:
     
     @staticmethod
     def create_jwt_token(user_id, user_role):
-        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=60)
+        access_token_exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=240)
 
         access_payload = {
             'user_id': user_id,
