@@ -328,7 +328,7 @@ class GsmbOfficerService:
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
-            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=23"
             response = requests.get(
                 ml_issues_url,
                 headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
@@ -348,23 +348,21 @@ class GsmbOfficerService:
                     "id": issue.get("id"),
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
-                    "author": issue.get("author", {}).get("name"),
+                    # "author": issue.get("author", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
                     "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
-                    "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of Applicant OR Company"),
-                    "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details) "),
-                    "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owners’ name"),
+                    # "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of Applicant OR Company"),
+                    "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
+                    "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
                     "village_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of village "),
                     "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(custom_fields, "Grama Niladhari Division"),
                     "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(custom_fields, "Divisional Secretary Division"),
                     "administrative_district": GsmbOfficerService.get_custom_field_value(custom_fields, "Administrative District"),
+                    "google_location": GsmbOfficerService.get_custom_field_value(custom_fields, "Google location "),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mobile Number"),
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
-                    "license_fee_receipt": attachment_urls.get("License fee receipt"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
-                    "professional": attachment_urls.get("Professional"),
-                    "licensed_boundary_survey": attachment_urls.get("Deed and Survey Plan"),
-                    "payment_receipt": attachment_urls.get("Payment Receipt"),
+                    "deed and survey plan": attachment_urls.get("Deed and Survey Plan"),
                 }
 
                 # Remove keys with None values
@@ -698,4 +696,97 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
 
-       
+    @staticmethod
+    def get_appointments(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # 🔁 Tracker ID for Appointment = 11
+            appointment_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=11&project_id=1"
+            response = requests.get(
+                appointment_issues_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch appointment issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            formatted_appointments = []
+
+            for issue in issues:
+                formatted_appointment = {
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "status": issue.get("status", {}).get("name"),
+                    "author": issue.get("author", {}).get("name"),
+                    "tracker": issue.get("tracker", {}).get("name"),
+                    "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
+                    "start_date": issue.get("start_date"),
+                    "due_date": issue.get("due_date"),
+                    "description": issue.get("description"),
+                    "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number")
+                }
+                formatted_appointments.append(formatted_appointment)
+
+            return formatted_appointments, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
+ 
+    @staticmethod
+    def create_appointment(token, assigned_to_id, mining_license_number, start_date, description):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            author_id = JWTUtils.decode_jwt_and_get_user_id(token)
+
+            if not user_api_key or not author_id:
+                return None, "Invalid or missing API key or user ID"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            issue_payload = {
+                "issue": {
+                    "project_id": 1,
+                    "tracker_id": 11,  # Appointment tracker
+                    "status_id": 1,    # Default to 'New' or use your desired status ID
+                    "assigned_to_id": int(assigned_to_id),
+                    "author_id": author_id,
+                    "subject": "Appointment",
+                    "description": description,
+                    "start_date": start_date,
+                    "custom_fields": [
+                        {
+                            "id": 101,  # Replace with actual ID for "Mining License Number"
+                            "value": "ML Request" + mining_license_number
+                        }
+                    ]
+                }
+            }
+
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(issue_payload)
+            )
+
+            if response.status_code != 201:
+                return None, f"Failed to create appointment: {response.status_code} - {response.text}"
+
+            issue_id = response.json().get("issue", {}).get("id")
+            return issue_id, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
