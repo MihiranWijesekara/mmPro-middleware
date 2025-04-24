@@ -484,5 +484,93 @@ def get_mlownersWithNic():
         return jsonify({"error": str(e)}), 500
 
 
+@gsmb_officer_bp.route('/get-appointments', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_appointments():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Fetch appointments from the service
+        appointments, error = GsmbOfficerService.get_appointments(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": appointments}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@gsmb_officer_bp.route('/create-appointment', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def create_appointment():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        assigned_to_id = request.args.get('assigned_to_id')
+        mining_license_number = request.args.get('mining_license_number')
+
+        if not assigned_to_id or not mining_license_number:
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        data = request.get_json()
+        start_date = data.get('start_date')
+        description = data.get('description')
+
+        if not start_date or not description:
+            return jsonify({"error": "Missing request body fields"}), 400
+
+        result, error = GsmbOfficerService.create_appointment(
+            token, assigned_to_id, mining_license_number, start_date, description
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "appointment_id": result}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
+@gsmb_officer_bp.route('/create-appointment', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def create_appointment():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        assigned_to_id = request.args.get('assigned_to_id')
+        mining_license_number = request.args.get('mining_license_number')
+
+        if not assigned_to_id or not mining_license_number:
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        data = request.get_json()
+        start_date = data.get('start_date')
+        description = data.get('description')
+
+        if not start_date or not description:
+            return jsonify({"error": "Missing request body fields"}), 400
+
+        result, error = GsmbOfficerService.create_appointment(
+            token, assigned_to_id, mining_license_number, start_date, description
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "appointment_id": result}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
           
