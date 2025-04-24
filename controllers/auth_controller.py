@@ -569,3 +569,4 @@ def create_issue():
             'error': 'Internal server error',
             'details': str(e)
         }), 500
+    
