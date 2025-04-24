@@ -457,6 +457,7 @@ def upload_mining_license():
         # Get form fields
         data = {
             "subject": request.form.get('subject'),
+            "status_id": data.get("status_id", 7),
             "start_date": request.form.get('start_date'),
             "due_date": request.form.get('due_date'),
             "administrative_district": request.form.get('administrative_district'),
