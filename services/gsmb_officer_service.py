@@ -570,6 +570,8 @@ class GsmbOfficerService:
                         {"id": 63, "value": data.get("used")},
                         {"id": 64, "value": data.get("remaining")},
                         {"id": 92, "value": data.get("google_location")},
+                        {"id": 101, "value": data.get("mining_license_number")},
+                        {"id": 99, "value": data.get("month_capacity")},
                     ]
             # Attachments (file tokens if present)
             file_field_ids = {
