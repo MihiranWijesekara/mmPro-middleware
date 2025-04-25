@@ -344,14 +344,32 @@ class GsmbOfficerService:
                 custom_fields = issue.get("custom_fields", [])
                 attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
 
+                # Fetch assigned_to user details
+                assigned_to = issue.get("assigned_to", {})
+                assigned_to_id = assigned_to.get("id")
+                assigned_to_details = None
+
+                if assigned_to_id:
+                    user_response = requests.get(
+                        f"{REDMINE_URL}/users/{assigned_to_id}.json",
+                        headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+                    )
+                    if user_response.status_code == 200:
+                        assigned_to_details = user_response.json().get("user", {})
+
                 ml_data = {
                     "id": issue.get("id"),
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
-                    # "author": issue.get("author", {}).get("name"),
-                    "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
+                    "assigned_to": assigned_to.get("name"),
+                    "created_on": issue.get("created_on"),
+                    "assigned_to_details": {
+                        "id": assigned_to_details.get("id"),
+                        "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
+                        "email": assigned_to_details.get("mail"),
+                        "custom_fields": assigned_to_details.get("custom_fields", [])
+                    } if assigned_to_details else None,
                     "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
-                    # "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of Applicant OR Company"),
                     "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
                     "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
                     "village_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of village "),
@@ -360,9 +378,10 @@ class GsmbOfficerService:
                     "administrative_district": GsmbOfficerService.get_custom_field_value(custom_fields, "Administrative District"),
                     "google_location": GsmbOfficerService.get_custom_field_value(custom_fields, "Google location "),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mobile Number"),
-                    "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                   # "economic_viability_report": attachment_urls.get("Economic Viability Report"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
-                    "deed and survey plan": attachment_urls.get("Deed and Survey Plan"),
+                    "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
+                    "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
 
                 # Remove keys with None values
@@ -568,6 +587,8 @@ class GsmbOfficerService:
                         {"id": 63, "value": data.get("used")},
                         {"id": 64, "value": data.get("remaining")},
                         {"id": 92, "value": data.get("google_location")},
+                        {"id": 101, "value": data.get("mining_license_number")},
+                        {"id": 99, "value": data.get("month_capacity")},
                     ]
             # Attachments (file tokens if present)
             file_field_ids = {
