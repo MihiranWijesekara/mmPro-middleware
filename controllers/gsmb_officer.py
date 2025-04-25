@@ -509,21 +509,24 @@ def create_appointment():
         if not token:
             return jsonify({"error": "Authorization token is missing"}), 400
 
-        assigned_to_id = request.args.get('assigned_to_id')
-        mining_license_number = request.args.get('mining_license_number')
-
-        if not assigned_to_id or not mining_license_number:
-            return jsonify({"error": "Missing required parameters"}), 400
-
+        # Get parameters from request body (JSON)
         data = request.get_json()
+        
+        assigned_to_id = data.get('assigned_to_id')
+        physical_meeting_location = data.get('physical_meeting_location')
         start_date = data.get('start_date')
         description = data.get('description')
 
-        if not start_date or not description:
-            return jsonify({"error": "Missing request body fields"}), 400
+        # Validate required fields
+        if not all([assigned_to_id, physical_meeting_location, start_date, description]):
+            return jsonify({"error": "Missing required parameters"}), 400
 
         result, error = GsmbOfficerService.create_appointment(
-            token, assigned_to_id, mining_license_number, start_date, description
+            token, 
+            assigned_to_id, 
+            physical_meeting_location, 
+            start_date, 
+            description
         )
 
         if error:
@@ -532,6 +535,5 @@ def create_appointment():
         return jsonify({"success": True, "appointment_id": result}), 201
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
+        return jsonify({"error": str(e)}), 500  
           
