@@ -761,7 +761,7 @@ class GsmbOfficerService:
 
  
     @staticmethod
-    def create_appointment(token, assigned_to_id, mining_license_number, start_date, description):
+    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description):
         try:
             user_api_key = JWTUtils.get_api_key_from_token(token)
             author_id = JWTUtils.decode_jwt_and_get_user_id(token)
@@ -785,8 +785,8 @@ class GsmbOfficerService:
                     "start_date": start_date,
                     "custom_fields": [
                         {
-                            "id": 101,  # Replace with actual ID for "Mining License Number"
-                            "value": "ML Request" + mining_license_number
+                            "id": 102,  # Replace with actual ID for "Mining License Number"
+                            "value": physical_meeting_location,
                         }
                     ]
                 }
