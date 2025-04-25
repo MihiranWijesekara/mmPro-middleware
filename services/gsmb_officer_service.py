@@ -758,7 +758,7 @@ class GsmbOfficerService:
                 "issue": {
                     "project_id": 1,
                     "tracker_id": 11,  # Appointment tracker
-                    "status_id": 1,    # Default to 'New' or use your desired status ID
+                    "status_id": 38,    # Default to 'New' or use your desired status ID
                     "assigned_to_id": int(assigned_to_id),
                     "author_id": author_id,
                     "subject": "Appointment",
