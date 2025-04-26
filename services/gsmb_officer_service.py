@@ -616,6 +616,7 @@ class GsmbOfficerService:
                     "subject": data["subject"],
                     "start_date": data["start_date"],
                     "due_date": data["due_date"],
+                    "status_id": 7,  
                     "description": f"Mining license submitted by {data.get('author', 'GSMB Officer')}",
                     "assigned_to_id":assignee_id,
                     "custom_fields": custom_fields
