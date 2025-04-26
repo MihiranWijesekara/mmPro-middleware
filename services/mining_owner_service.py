@@ -238,8 +238,15 @@ class MLOwnerService:
             if not mining_license_number:
                 return None, "Mining license number is required"
 
-            # Define the Redmine API endpoint to fetch the mining license issue
-            mining_issue_url = f"{REDMINE_URL}/issues.json?subject={mining_license_number}"
+            try:
+                # Extract the issue ID from the license number
+                mining_issue_id = mining_license_number.strip().split('/')[-1]
+                mining_issue_id = int(mining_issue_id)  # Make sure it's an integer
+            except (IndexError, ValueError):
+                return None, "Invalid mining license number format"
+
+            # Define the Redmine API endpoint to fetch the mining license issue directly
+            mining_issue_url = f"{REDMINE_URL}/issues/{mining_issue_id}.json"
             headers = {
                 "Content-Type": "application/json",
                 "X-Redmine-API-Key": API_KEY
@@ -248,23 +255,18 @@ class MLOwnerService:
             # Fetch the mining license issue
             mining_issue_response = requests.get(mining_issue_url, headers=headers)
             if mining_issue_response.status_code != 200:
-                return None, "Failed to fetch mining license issue"
-            
+                return None, f"Failed to fetch mining license issue: {mining_issue_response.status_code} - {mining_issue_response.text}"
+
             # Log the Redmine API response for debugging
             mining_issue_data = mining_issue_response.json()
             print("Mining Issue Response:", mining_issue_data)
-            
-            mining_issues = mining_issue_data.get("issues", [])
-            if not mining_issues:
+
+            # Get the issue details
+            mining_issue = mining_issue_data.get("issue")
+            if not mining_issue:
                 return None, "Mining license issue not found"
-            
-            # Get the first matching issue (assuming unique subject)
-            mining_issue = mining_issues[0]
-            mining_issue_id = mining_issue.get("id")
-            if not mining_issue_id:
-                return None, "Mining license issue ID not found"
-            
-            # Extract current Used and Remaining values
+
+            # Extract current Used, Remaining, Royalty values
             custom_fields = mining_issue.get("custom_fields", [])
             used_field = next((field for field in custom_fields if field.get("name") == "Used"), None)
             remaining_field = next((field for field in custom_fields if field.get("name") == "Remaining"), None)
@@ -395,19 +397,22 @@ class MLOwnerService:
         """
         try:
             # Step 1: Geocode cities to get coordinates
-            def geocode_location(city_name):
+            def geocode_location(city_name): 
                 print("first request ins")
-                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
-                response_first = requests.get(url, timeout=1)
-                response = response_first.json()   
+                url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json"
+                headers = {
+                    "User-Agent": "YourAppName/1.0 (your.email@example.com)"  # <-- important for Nominatim usage policy
+                }
+                response_first = requests.get(url, headers=headers, timeout=1)
+                
                 if response_first.status_code != 200:
-                  raise ValueError(f"Geocoding failed with status code {response_first.status_code}, body: {response_first.text}")
+                    raise ValueError(f"Geocoding failed with status code {response_first.status_code}, body: {response_first.text}")
 
                 try:
                     response = response_first.json()
-                except ValueError as ve:
+                except ValueError:
                     raise ValueError(f"Invalid JSON response: {response_first.text}")  
-                   
+                
                 if response:
                     lat = float(response[0]['lat'])
                     lon = float(response[0]['lon'])

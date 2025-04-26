@@ -639,7 +639,31 @@ class GsmbOfficerService:
             )
 
             if response.status_code == 201:
-                return True, None
+                issue_id = response.json()["issue"]["id"]
+
+                # Now, update the Mining License Number field with LLL/100/{issue_id}
+                update_payload = {
+                    "issue": {
+                        "custom_fields": [
+                            {
+                                "id": 101,  # Mining License Number field ID
+                                "value": f"LLL/100/{issue_id}"
+                            }
+                        ]
+                    }
+                }
+
+                update_response = requests.put(
+                    f"{REDMINE_URL}/issues/{issue_id}.json",
+                    headers=headers,
+                    json=update_payload
+                )
+
+                if update_response.status_code == 204:
+                    return True, None
+                else:
+                    return False, f"Failed to update Mining License Number: {update_response.status_code} - {update_response.text}"
+
             else:
                 return False, f"Redmine issue creation failed: {response.status_code} - {response.text}"
 
