@@ -4,10 +4,12 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import date, timedelta , datetime 
+from services.general_public_service import GeneralPublicService
 from utils.jwt_utils import JWTUtils
 from utils.MLOUtils import MLOUtils
 from flask import request
 from utils.limit_utils import LimitUtils
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 
@@ -38,7 +40,8 @@ class MLOwnerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4  # ML tracker ID
+                "tracker_id": 4,  # ML tracker ID
+                "status_id": 7 
             }
 
             headers = {
@@ -127,7 +130,8 @@ class MLOwnerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4  # ML tracker ID
+                "tracker_id": 4,  # ML tracker ID
+                "status_id": 7 
             }
 
             headers = {
@@ -213,6 +217,15 @@ class MLOwnerService:
 
             print("Redmine URL:", REDMINE_URL)
 
+            # First check if lorry already has an active TPL license
+            # lorry_number = data.get("lorry_number")
+            # if lorry_number:
+            #     is_valid, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
+            # if error:
+            #     return None, f"Error checking lorry license status: {error}"
+            # if is_valid:
+            #     return None, "This lorry already has an active Transport License"
+
             # Get the API key from the token
             API_KEY = JWTUtils.get_api_key_from_token(token)
             if not API_KEY:
@@ -225,8 +238,15 @@ class MLOwnerService:
             if not mining_license_number:
                 return None, "Mining license number is required"
 
-            # Define the Redmine API endpoint to fetch the mining license issue
-            mining_issue_url = f"{REDMINE_URL}/issues.json?subject={mining_license_number}"
+            try:
+                # Extract the issue ID from the license number
+                mining_issue_id = mining_license_number.strip().split('/')[-1]
+                mining_issue_id = int(mining_issue_id)  # Make sure it's an integer
+            except (IndexError, ValueError):
+                return None, "Invalid mining license number format"
+
+            # Define the Redmine API endpoint to fetch the mining license issue directly
+            mining_issue_url = f"{REDMINE_URL}/issues/{mining_issue_id}.json"
             headers = {
                 "Content-Type": "application/json",
                 "X-Redmine-API-Key": API_KEY
@@ -235,37 +255,41 @@ class MLOwnerService:
             # Fetch the mining license issue
             mining_issue_response = requests.get(mining_issue_url, headers=headers)
             if mining_issue_response.status_code != 200:
-                return None, "Failed to fetch mining license issue"
-            
+                return None, f"Failed to fetch mining license issue: {mining_issue_response.status_code} - {mining_issue_response.text}"
+
             # Log the Redmine API response for debugging
             mining_issue_data = mining_issue_response.json()
             print("Mining Issue Response:", mining_issue_data)
-            
-            mining_issues = mining_issue_data.get("issues", [])
-            if not mining_issues:
+
+            # Get the issue details
+            mining_issue = mining_issue_data.get("issue")
+            if not mining_issue:
                 return None, "Mining license issue not found"
-            
-            # Get the first matching issue (assuming unique subject)
-            mining_issue = mining_issues[0]
-            mining_issue_id = mining_issue.get("id")
-            if not mining_issue_id:
-                return None, "Mining license issue ID not found"
-            
-            # Extract current Used and Remaining values
+
+            # Extract current Used, Remaining, Royalty values
             custom_fields = mining_issue.get("custom_fields", [])
             used_field = next((field for field in custom_fields if field.get("name") == "Used"), None)
             remaining_field = next((field for field in custom_fields if field.get("name") == "Remaining"), None)
-             
-            if not used_field or not remaining_field:
-                return None, "Used or Remaining fields not found in the mining license issue"
+            royalty_field = next((field for field in custom_fields if field.get("name") == "Royalty"), None)
 
+            if not used_field or not remaining_field or not royalty_field:
+                return None, "Required fields (Used, Remaining, or Royalty) not found in the mining license issue"
+            
             current_used = int(used_field.get("value", 0))
             current_remaining = int(remaining_field.get("value", 0))
+            current_royalty = int(royalty_field.get("value", 0))
+
             cubes = int(data.get("cubes", 0))
 
+            # Calculate TPL cost (500 per cube)
+            tpl_cost = cubes * 500
+
+            if current_royalty < tpl_cost:
+                return None, f"Insufficient royalty balance. Required: {tpl_cost}, Available: {current_royalty}"
             # Update Used and Remaining values
             new_used = current_used + cubes
             new_remaining = current_remaining - cubes
+            new_royalty = current_royalty - tpl_cost
 
             if new_remaining < 0:
                 return None, "Insufficient remaining cubes"
@@ -275,12 +299,14 @@ class MLOwnerService:
                 "issue": {
                     "custom_fields": [
                         {"id": used_field.get("id"), "value": str(new_used)},
-                        {"id": remaining_field.get("id"), "value": str(new_remaining)}
+                        {"id": remaining_field.get("id"), "value": str(new_remaining)},
+                        {"id": royalty_field.get("id"), "value": str(new_royalty)}
                     ]
                 }
             }
             # Log the update payload for debugging
             print("Update Payload:", update_payload)
+
 
             # Send a PUT request to update the mining license issue
             update_url = f"{REDMINE_URL}/issues/{mining_issue_id}.json"
@@ -308,6 +334,12 @@ class MLOwnerService:
 
             time_hours = time_result.get("time_hours", 0)
 
+            print("the token is ", token)
+            result = JWTUtils.decode_jwt_and_get_user_id(token)
+
+            user_id = result['user_id']
+            
+            print("assinging  id : " , user_id)
             # Prepare the payload for the TPL request
             payload = {
                 "issue": {
@@ -317,7 +349,9 @@ class MLOwnerService:
                     "priority_id": 2,
                     "subject": "TPL",
                     "start_date": data.get("start_date", date.today().isoformat()),
-                    "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
+                    "assigned_to_id": user_id,
+                   # "due_date": (datetime.now() + timedelta(hours=time_hours)).strftime("%Y-%m-%d"),
+                    "estimated_hours" :time_hours,
                     "custom_fields": [
                         {"id": 53, "name": "Lorry Number", "value": data.get("lorry_number", "")},
                         {"id": 54, "name": "Driver Contact", "value": data.get("driver_contact", "")},
@@ -363,11 +397,22 @@ class MLOwnerService:
         """
         try:
             # Step 1: Geocode cities to get coordinates
-            def geocode_location(city_name):
+            def geocode_location(city_name): 
                 print("first request ins")
-                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
-                response_first = requests.get(url, timeout=1)
-                response = response_first.json()        
+                url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json"
+                headers = {
+                    "User-Agent": "YourAppName/1.0 (your.email@example.com)"  # <-- important for Nominatim usage policy
+                }
+                response_first = requests.get(url, headers=headers, timeout=1)
+                
+                if response_first.status_code != 200:
+                    raise ValueError(f"Geocoding failed with status code {response_first.status_code}, body: {response_first.text}")
+
+                try:
+                    response = response_first.json()
+                except ValueError:
+                    raise ValueError(f"Invalid JSON response: {response_first.text}")  
+                
                 if response:
                     lat = float(response[0]['lat'])
                     lon = float(response[0]['lon'])
@@ -405,7 +450,7 @@ class MLOwnerService:
                 "success": True,
                 "city1": city1,
                 "city2": city2,
-                "time_hours": round(time_hours, 2)
+                "time_hours": int(round(time_hours))
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -536,7 +581,7 @@ class MLOwnerService:
 
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
-        
+    
             if not REDMINE_URL or not API_KEY:
                 return None, "System configuration error - missing Redmine URL or API Key"
 
@@ -555,7 +600,6 @@ class MLOwnerService:
                 "X-Redmine-API-Key": API_KEY
             }
 
-        
             limit = LimitUtils.get_limit()
             response = requests.get(
                 f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
@@ -568,57 +612,60 @@ class MLOwnerService:
 
             issues = response.json().get("issues", [])
             tpl_list = []
-            current_date = datetime.now().date()
+            current_datetime = datetime.now()
+        
             for issue in issues:
                 try:
                     custom_fields = {
                         field["name"]: field["value"] 
                         for field in issue.get("custom_fields", [])
                     }
-                
+            
                     if custom_fields.get("Mining License Number") != mining_license_number:
                         continue
 
-                    start_date = None
-                    due_date = None
+                    created_date = None
+                    estimated_hours = issue.get("estimated_hours")
+                    status = "Unknown"
+                
                     try:
-                        if issue.get("start_date"):
-                            start_date = datetime.strptime(issue["start_date"], "%Y-%m-%d").date()
-                        if issue.get("due_date"):
-                            due_date = datetime.strptime(issue["due_date"], "%Y-%m-%d").date()
+                        if issue.get("created_on"):
+                            created_date = datetime.strptime(issue["created_on"], "%Y-%m-%dT%H:%M:%SZ")
+                    
+                        if created_date and estimated_hours:
+                            # Calculate expiration datetime (created date + estimated hours)
+                            expiration_datetime = created_date + timedelta(hours=float(estimated_hours))
+                        
+                            if current_datetime < expiration_datetime:
+                                status = "Active"
+                            else:
+                                status = "Expired"
+                        else:
+                            # If we don't have both created_date and estimated_hours, we can't determine status
+                            status = "Undetermined"
+
+                        tpl_data = {
+                            "tpl_id": issue.get("id"),
+                            "license_number": mining_license_number,
+                            "subject": issue.get("subject", ""),
+                            "status": status,
+                            "lorry_number": custom_fields.get("Lorry Number"),
+                            "driver_contact": custom_fields.get("Driver Contact"),
+                            "destination": custom_fields.get("Destination"),
+                            "Route_01": custom_fields.get("Route 01"),
+                            "Route_02": custom_fields.get("Route 02"),
+                            "Route_03": custom_fields.get("Route 03"),
+                            "cubes": custom_fields.get("Cubes"),  
+                            "Create_Date": issue.get("created_on", ""),
+                            "Estimated Hours": estimated_hours,
+                        }
+                
+                        tpl_list.append(tpl_data)
+                
                     except ValueError as e:
                         print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
                         continue
 
-                    status = "Unknown"
-                    if start_date and due_date:
-                        if current_date < start_date:
-                            status = "Pending"
-                        elif start_date <= current_date <= due_date:
-                            status = "Active"
-                        elif current_date > due_date:
-                            status = "Expired"
-
-                    tpl_data = {
-
-                        "tpl_id": issue.get("id"),
-                        "license_number": mining_license_number,
-                        "subject": issue.get("subject", ""),
-                        "start_date": issue.get("start_date"),
-                        "due_date": issue.get("due_date"),
-                        "status": status,
-                        "lorry_number": custom_fields.get("Lorry Number"),
-                        "driver_contact": custom_fields.get("Driver Contact"),
-                       "destination": custom_fields.get("Destination"),
-                        "Route_01": custom_fields.get("Route 01"),
-                        "Route_02": custom_fields.get("Route 02"),
-                        "Route_03": custom_fields.get("Route 03"),
-                        "cubes": custom_fields.get("Cubes"),  
-                        "Create Date": issue.get("created_on", ""),    
-                    }
-                
-                    tpl_list.append(tpl_data)
-                
                 except Exception as e:
                     print(f"Error processing issue {issue.get('id')}: {str(e)}")
                     continue
@@ -629,6 +676,120 @@ class MLOwnerService:
             return None, f"Network error: {str(e)}"
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
-            return None, f"Processing error: {str(e)}"   
-
+        return None, f"Processing error: {str(e)}"
     
+
+
+    @staticmethod
+    def ml_request(data, token, attachments=None):
+        try:
+            # Get the Redmine URL from environment variables
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Redmine URL is not configured"
+
+            print("Redmine URL:", REDMINE_URL)
+
+            # Get the API key from the token
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+            if not API_KEY:
+                return None, "Invalid or missing API key"
+            
+            headers = {
+                "Content-Type": "application/json",
+                "X-Redmine-API-Key": API_KEY
+            }
+    
+            # Prepare the payload for the ML request
+            payload = {
+                "issue": {
+                    "project_id": data.get("project_id", 1),
+                    "tracker_id": data.get("tracker_id", 4),
+                    "status_id": data.get("status_id", 8),
+                    "priority_id": data.get("priority_id", 2),
+                    "assigned_to_id": data.get("assigned_to"),  # Get from data dictionary
+                    "author_id": data.get("author"), 
+                    "subject": data.get("subject", "ML Request"),
+                    "description": data.get("description", ""),
+                    "custom_fields": [
+                        {"id": 19, "value": data.get("exploration_nb", "")},
+                        {"id": 28, "value": data.get("land_name", "")},  
+                        {"id": 29, "value": data.get("land_owner_name", "")},
+                        {"id": 30, "value": data.get("village_name", "")},
+                        {"id": 31, "value": data.get("grama_niladari", "")},
+                        {"id": 32, "value": data.get("divisional_secretary_division", "")},
+                        {"id": 33, "value": data.get("administrative_district", "")},   
+                        {"id": 92, "value": data.get("google_location", "")}, 
+                        *data.get("custom_fields", [])                              
+                    ]
+                }
+            }
+
+            # First create the issue
+            response = requests.post(f"{REDMINE_URL}/issues.json", json=payload, headers=headers)
+            
+            if response.status_code != 201:
+                return None, f"Failed to create issue: {response.text}"
+        
+            issue_id = response.json()["issue"]["id"]
+            
+
+            if attachments:
+                for custom_field_id, file_obj  in attachments.items():
+                    try:
+                        # Prepare file upload headers - same as in your working upload_file_to_redmine
+                        upload_headers = {
+                            "X-Redmine-API-Key": API_KEY, 
+                           "Content-Type": "application/octet-stream"
+                        }
+
+                        filename = secure_filename(file_obj.filename)
+                        upload_url = f"{REDMINE_URL}/uploads.json?filename={filename}"
+                    
+                        upload_response = requests.post(
+                        upload_url,
+                        headers=upload_headers,
+                        data=file_obj.stream.read()
+                        )
+                 
+                        if upload_response.status_code != 201:
+                            print(f"Failed to upload file for field {custom_field_id}: {upload_response.text}")
+                            continue
+                
+                        upload_token = upload_response.json().get("upload", {}).get("token")
+                        if not upload_token:
+                            print(f"No upload token received for field {custom_field_id}")
+                            continue
+                
+                        # Update the issue with the attachment token
+                        update_payload = {
+                            "issue": {
+                                "custom_fields": [
+                                    {
+                                        "id": int(custom_field_id),
+                                        "value": upload_token
+                                    }
+                                ]
+                            }
+                        }
+                
+                        update_response = requests.put(
+                            f"{REDMINE_URL}/issues/{issue_id}.json",
+                            json=update_payload,
+                            headers=headers
+                        )
+                
+                        if update_response.status_code != 200:
+                            print(f"Failed to update field {custom_field_id}: {update_response.text}")
+            
+                    except Exception as e:
+                        print(f"Error processing attachment for field {custom_field_id}: {str(e)}")
+    
+            return response.json(), None
+
+        except requests.exceptions.RequestException as e:
+            return None, f"Request failed: {str(e)}"
+        except Exception as e:
+            return None, f"Unexpected error: {str(e)}"
+        
+                

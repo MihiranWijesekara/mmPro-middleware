@@ -9,8 +9,6 @@ from flask import request
 
 from utils.limit_utils import LimitUtils
 
-
-
 load_dotenv()
 
 class GsmbOfficerService:
@@ -33,7 +31,7 @@ class GsmbOfficerService:
 
             # 🌐 Get Redmine URL
             REDMINE_URL = os.getenv("REDMINE_URL")
-            print(REDMINE_URL)
+
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
@@ -75,12 +73,126 @@ class GsmbOfficerService:
                 user for user in all_users if user["id"] in ml_owner_ids
             ]
 
-            return ml_owners_details, None  # ✅ Return only relevant user details
+            # Fetch the mining license counts for all users
+            license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
+            if license_error:
+                return None, license_error
+
+            # 5️⃣ Map license count to each MLOwner
+            formatted_ml_owners = []
+            for ml_owner in ml_owners_details:
+                owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
+                ml_owner_name = owner_name.strip()
+                license_count = license_counts.get(ml_owner_name, 0)
+
+                # Prepare formatted output
+                formatted_owner = {
+                    "id": ml_owner["id"],
+                    "ownerName": ml_owner_name,
+                    "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
+                    "email": ml_owner.get("mail", ""),
+                    "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
+                    "totalLicenses": license_count
+                }
+                
+                formatted_ml_owners.append(formatted_owner)
+
+            return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
 
+#         @staticmethod
+# def get_mlowners(token):
+#     try:
+#         # 🔑 Extract user's API key from token for memberships request
+#         user_api_key = JWTUtils.get_api_key_from_token(token)
+#         print(user_api_key)
+#         if not user_api_key:
+#             return None, "Invalid or missing API key in the token"
+
+#         # 🔑 Get Redmine Admin API key for user details request
+#         admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+#         if not admin_api_key:
+#             return None, "Environment variable 'REDMINE_ADMIN_API_KEY' is not set"
+
+#         # 🌐 Get Redmine URL
+#         REDMINE_URL = os.getenv("REDMINE_URL")
+#         print(REDMINE_URL)
+#         if not REDMINE_URL:
+#             return None, "Environment variable 'REDMINE_URL' is not set"
+
+#         # 1️⃣ Fetch memberships using the **user's API key**
+#         memberships_url = f"{REDMINE_URL}/projects/mmpro-gsmb/memberships.json"
+#         memberships_response = requests.get(
+#             memberships_url, 
+#             headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+#         )
+
+#         if memberships_response.status_code != 200:
+#             return None, f"Failed to fetch memberships: {memberships_response.status_code} - {memberships_response.text}"
+
+#         memberships = memberships_response.json().get("memberships", [])
+
+#         # 2️⃣ Filter users who have the role "MLOwner"
+#         ml_owner_ids = [
+#             membership['user']['id'] for membership in memberships
+#             if any(role["name"] == "MLOwner" for role in membership.get("roles", []))
+#         ]
+
+#         if not ml_owner_ids:
+#             return [], None  # No MLOwner users found
+
+#         # 3️⃣ Fetch user details using the **admin API key** (for broader access)
+#         users_url = f"{REDMINE_URL}/users.json?status=1&limit=100"
+#         users_response = requests.get(
+#             users_url, 
+#             headers={"X-Redmine-API-Key": admin_api_key, "Content-Type": "application/json"}
+#         )
+
+#         if users_response.status_code != 200:
+#             return None, f"Failed to fetch user details: {users_response.status_code} - {users_response.text}"
+
+#         all_users = users_response.json().get("users", [])
+
+#         # 4️⃣ Filter users who match MLOwner IDs AND have User Type = mlOwner
+#         ml_owners_details = [
+#             user for user in all_users 
+#             if user["id"] in ml_owner_ids and 
+#                any(field["name"] == "User Type" and field["value"] == "mlOwner" 
+#                    for field in user.get("custom_fields", []))
+#         ]
+
+#         # Fetch the mining license counts for all users
+#         license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
+#         if license_error:
+#             return None, license_error
+
+#         # 5️⃣ Map license count to each MLOwner
+#         formatted_ml_owners = []
+#         for ml_owner in ml_owners_details:
+#             owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
+#             ml_owner_name = owner_name.strip()
+#             license_count = license_counts.get(ml_owner_name, 0)
+
+#             # Prepare formatted output
+#             formatted_owner = {
+#                 "id": ml_owner["id"],
+#                 "ownerName": ml_owner_name,
+#                 "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
+#                 "email": ml_owner.get("mail", ""),
+#                 "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
+#                 "totalLicenses": license_count
+#             }
+            
+#             formatted_ml_owners.append(formatted_owner)
+#             print(formatted_owner["totalLicenses"])
+
+#         return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
+
+#     except Exception as e:
+#         return None, f"Server error: {str(e)}"
 
     @staticmethod
     def get_tpls(token):
@@ -90,7 +202,6 @@ class GsmbOfficerService:
             if not user_api_key:
                 return None, "Invalid or missing API key in the token"
 
-            # 🌐 Get Redmine URL and Admin API key
             REDMINE_URL = os.getenv("REDMINE_URL")
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
@@ -105,7 +216,6 @@ class GsmbOfficerService:
             if response.status_code != 200:
                 return None, f"Failed to fetch TPL issues: {response.status_code} - {response.text}"
 
-            # 🛠️ Process the response
             issues = response.json().get("issues", [])
             formatted_tpls = []
 
@@ -115,17 +225,16 @@ class GsmbOfficerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "author": issue.get("author", {}).get("name"),
+                    "tracker": issue.get("tracker", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
                     "start_date": issue.get("start_date"),
                     "due_date": issue.get("due_date"),
                     "lorry_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Number"),
                     "driver_contact": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Driver Contact"),
-                    "route_01": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 01"),
-                    "route_02": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 02"),
-                    "route_03": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Route 03"),
                     "cubes": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Cubes"),
                     "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     "destination": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Destination"),
+                    "lorry_driver_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Driver Name"),
                 
                 }
                 formatted_tpls.append(formatted_tpl)
@@ -148,7 +257,7 @@ class GsmbOfficerService:
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
-            # 🚀 Fetch ML issues from Redmine
+            # 🚀 Fetch all ML issues from Redmine
             ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
             response = requests.get(
                 ml_issues_url,
@@ -158,13 +267,19 @@ class GsmbOfficerService:
             if response.status_code != 200:
                 return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
 
-            # 🛠️ Process the response
             issues = response.json().get("issues", [])
             formatted_mls = []
 
             for issue in issues:
+                issue_id = issue.get("id")
+                
+                # Fetching attachments separately
+                custom_fields = issue.get("custom_fields", [])  # Extract custom fields
+                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
+
                 formatted_ml = {
-                    "id": issue.get("id"),
+                    "id": issue_id,
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "author": issue.get("author", {}).get("name"),
@@ -183,14 +298,205 @@ class GsmbOfficerService:
                     "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
-                
+                    "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
+                    
+                    # Fetching File URLs from Attachments API
+                    "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                    "license_fee_receipt": attachment_urls.get("License fee receipt"),
+                    "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+                    "professional": attachment_urls.get("Professional"),
+                    "deed and survey plan": attachment_urls.get("Deed and Survey Plan"),
+                    "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
+
                 formatted_mls.append(formatted_ml)
+ 
+            return formatted_mls, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
+
+    @staticmethod
+    def get_mining_license_requests(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=23"
+            response = requests.get(
+                ml_issues_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            formatted_mls = []
+
+            for issue in issues:
+                custom_fields = issue.get("custom_fields", [])
+                attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
+                # Fetch assigned_to user details
+                assigned_to = issue.get("assigned_to", {})
+                assigned_to_id = assigned_to.get("id")
+                assigned_to_details = None
+
+                if assigned_to_id:
+                    user_response = requests.get(
+                        f"{REDMINE_URL}/users/{assigned_to_id}.json",
+                        headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+                    )
+                    if user_response.status_code == 200:
+                        assigned_to_details = user_response.json().get("user", {})
+
+                ml_data = {
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "status": issue.get("status", {}).get("name"),
+                    "assigned_to": assigned_to.get("name"),
+                    "created_on": issue.get("created_on"),
+                    "assigned_to_details": {
+                        "id": assigned_to_details.get("id"),
+                        "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
+                        "email": assigned_to_details.get("mail"),
+                        "custom_fields": assigned_to_details.get("custom_fields", [])
+                    } if assigned_to_details else None,
+                    "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
+                    "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
+                    "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
+                    "village_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of village "),
+                    "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(custom_fields, "Grama Niladhari Division"),
+                    "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(custom_fields, "Divisional Secretary Division"),
+                    "administrative_district": GsmbOfficerService.get_custom_field_value(custom_fields, "Administrative District"),
+                    "google_location": GsmbOfficerService.get_custom_field_value(custom_fields, "Google location "),
+                    "mobile_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mobile Number"),
+                   # "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                    "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+                    "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
+                    "payment_receipt": attachment_urls.get("Payment Receipt"),
+                }
+
+                # Remove keys with None values
+                formatted_mls.append(ml_data)
 
             return formatted_mls, None
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+
+    @staticmethod
+    def get_complaints(token):
+        try:
+            # 🔑 Extract user's API key from token
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            # 🌐 Get Redmine URL
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # 🚀 Fetch Complaint issues
+            complaints_url = f"{REDMINE_URL}/issues.json?tracker_id=6&project_id=1"
+            response = requests.get(
+                complaints_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch complaint issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            formatted_complaints = []
+
+            for issue in issues:
+                custom_fields = issue.get("custom_fields", [])
+
+                # Extract Lorry Number and Mobile Number from custom fields
+                lorry_number = None
+                mobile_number = None
+
+                for field in custom_fields:
+                    if field.get("name") == "Lorry Number":
+                        lorry_number = field.get("value")
+                    elif field.get("name") == "Mobile Number":
+                        mobile_number = field.get("value")
+
+                # 🛠️ Format complaint_date
+                created_on = issue.get("created_on")
+                complaint_date = None
+                if created_on:
+                    try:
+                        # Parse ISO datetime and format it
+                        dt = datetime.strptime(created_on, "%Y-%m-%dT%H:%M:%SZ")
+                        complaint_date = dt.strftime("%Y-%m-%d %H:%M:%S")  # 👈 this adds the space
+                    except Exception as e:
+                        complaint_date = created_on  # fallback if parsing fails
+
+                formatted_complaint = {
+                    "id": issue.get("id"), 
+                    "lorry_number": lorry_number,
+                    "mobile_number": mobile_number,
+                    "complaint_date": complaint_date,
+                }
+                formatted_complaints.append(formatted_complaint)
+
+            return formatted_complaints, None
+
+        except Exception as e:
+            return None, str(e)
+
+
+    @staticmethod
+    def get_attachment_urls(api_key, redmine_url, custom_fields):
+        try:
+            # Define the mapping of custom field names to their attachment IDs
+            file_fields = {
+                "Economic Viability Report": None,
+                "License fee receipt": None,
+                "Detailed Mine Restoration Plan": None,
+                "Professional": None,
+                "Deed and Survey Plan": None,
+                "Payment Receipt": None
+            }
+
+            # Extract attachment IDs from custom fields
+            for field in custom_fields:
+                field_name = field.get("name")
+                attachment_id = field.get("value")
+
+                if field_name in file_fields and attachment_id.isdigit():
+                    file_fields[field_name] = attachment_id
+
+            # Fetch URLs for valid attachment IDs
+            file_urls = {}
+            for field_name, attachment_id in file_fields.items():
+                if attachment_id:
+                    attachment_url = f"{redmine_url}/attachments/{attachment_id}.json"
+                    response = requests.get(
+                        attachment_url,
+                        headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                    )
+
+                    if response.status_code == 200:
+                        attachment_data = response.json().get("attachment", {})
+                        file_urls[field_name] = attachment_data.get("content_url", "")
+
+            return file_urls
+
+        except Exception as e:
+            return {}
+
 
     @staticmethod
     def get_custom_field_value(custom_fields, field_name):
@@ -199,6 +505,7 @@ class GsmbOfficerService:
             if field.get("name") == field_name:
                 return field.get("value")
         return None
+    
     @staticmethod
     def get_mining_license_counts(token):
         try:
@@ -235,610 +542,295 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
+    @staticmethod
+    def upload_file_to_redmine(file):
+        print("inside file upload")
+        """
+        Uploads a file to Redmine and returns the attachment ID.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        
+
+        url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
+
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type":"application/octet-stream",
+            "Accept": "application/json"
+        }
+
+
+        response = requests.post(url, headers=headers, data=file.stream)
+
+        if response.status_code == 201:
+             return response.json().get("upload", {}).get("id")   # Attachment ID
+        else:
+            return None  # Handle failed upload
+
 
     @staticmethod
-    def calculate_distance(city1, city2):
-        """
-        Calculate the distance between two cities using OpenRouteService API and return the time in hours.
-
-        Args:
-            city1 (str): Name of the first city.
-            city2 (str): Name of the second city.
-
-        Returns:
-            dict: A dictionary containing the time in hours or an error message.
-        """
+    def upload_mining_license(token, data):
         try:
-            # Step 1: Geocode cities to get coordinates
-            def geocode_location(city_name):
-                print("first request ins")
-                url = f"https://geocode.maps.co/search?q={city_name}&format=json"
-                response_first = requests.get(url, timeout=1)
-                response = response_first.json()        
-                if response:
-                    lat = float(response[0]['lat'])
-                    lon = float(response[0]['lon'])
-                    print(lat, lon)
-                    return lon, lat  # Return as [longitude, latitude]
-                else:
-                    raise ValueError(f"Location '{city_name}' not found")
+            # Map custom field IDs from your tracker
+            custom_fields = [
+                        {"id": 19, "value": data.get("exploration_licence_no")},
+                        {"id": 28, "value": data.get("land_name")},
+                        {"id": 30, "value": data.get("village_name")},
+                        {"id": 31, "value": data.get("grama_niladhari_division")},
+                        {"id": 32, "value": data.get("divisional_secretary_division")},
+                        {"id": 33, "value": data.get("administrative_district")},
+                        {"id": 66, "value": data.get("mobile_number")},
+                        {"id": 29, "value": data.get("land_owner_name")},
+                        {"id": 18, "value": data.get("royalty")},
+                        {"id": 34, "value": data.get("capacity")},
+                        {"id": 63, "value": data.get("used")},
+                        {"id": 64, "value": data.get("remaining")},
+                        {"id": 92, "value": data.get("google_location")},
+                        {"id": 101, "value": data.get("mining_license_number")},
+                        {"id": 99, "value": data.get("month_capacity")},
+                    ]
+            # Attachments (file tokens if present)
+            file_field_ids = {
+                "economic_viability_report": 70,
+                "detailed_mine_restoration_plan": 72,
+                "deed_and_survey_plan":90,
+                "payment_receipt": 80,
+                # "license_fee_receipt": 81  # example if you've added this to tracker
+            }
 
-            # Geocode both cities
-            coord1 = geocode_location(city1)
-            coord2 = geocode_location(city2)
+            for key, field_id in file_field_ids.items():
+                if data.get(key):
+                    custom_fields.append({
+                        "id": field_id,
+                        "value": data[key]
+                    })
 
-            print("second request")
+            assignee_id = int(data["assignee_id"]) if data.get("assignee_id") else None
 
-            # Step 2: Calculate distance using OpenRouteService
-            url = "https://api.openrouteservice.org/v2/directions/driving-car"
+            # Prepare issue payload
+            issue_payload = {
+                "issue": {
+                    "project_id": 1,
+                    "tracker_id": 4,
+                    "subject": data["subject"],
+                    "start_date": data["start_date"],
+                    "due_date": data["due_date"],
+                    "status_id": 7,  
+                    "description": f"Mining license submitted by {data.get('author', 'GSMB Officer')}",
+                    "assigned_to_id":assignee_id,
+                    "custom_fields": custom_fields
+                }
+            }
+
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+
             headers = {
-                "Authorization": GsmbOfficerService.ORS_API_KEY,
+                "X-Redmine-API-Key": user_api_key,
                 "Content-Type": "application/json"
             }
-            body = {
-                "coordinates": [coord1, coord2],
-                "units": "km"
-            }
-            response = requests.post(url, headers=headers, json=body).json()
 
-            # Extract distance from the response
-            distance_km = response['routes'][0]['summary']['distance']
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",  # Use formatted string
+                headers=headers,
+                json=issue_payload
+            )
 
-            # Calculate the time in hours: (distance / 30 km/h) + 2 hours
-            time_hours = (distance_km / 30) + 2
+            if response.status_code == 201:
+                issue_id = response.json()["issue"]["id"]
 
-            # Return the time in hours
-            return {
-                "success": True,
-                "city1": city1,
-                "city2": city2,
-                "time_hours": round(time_hours, 2)
-            }
+                # Now, update the Mining License Number field with LLL/100/{issue_id}
+                update_payload = {
+                    "issue": {
+                        "custom_fields": [
+                            {
+                                "id": 101,  # Mining License Number field ID
+                                "value": f"LLL/100/{issue_id}"
+                            }
+                        ]
+                    }
+                }
+
+                update_response = requests.put(
+                    f"{REDMINE_URL}/issues/{issue_id}.json",
+                    headers=headers,
+                    json=update_payload
+                )
+
+                if update_response.status_code == 204:
+                    return True, None
+                else:
+                    return False, f"Failed to update Mining License Number: {update_response.status_code} - {update_response.text}"
+
+            else:
+                return False, f"Redmine issue creation failed: {response.status_code} - {response.text}"
+
         except Exception as e:
-            return {"success": False, "error": str(e)}
-
-
-
-#     @staticmethod
-#     def get_Issues_Data(token):  # Accept token as a parameter
-#         try:
-#             # Use the passed token here
-#             api_key = JWTUtils.get_api_key_from_token(token)
-
-#             if not api_key:
-#                 return None, "API Key is missing"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-
-#             url = f"{REDMINE_URL}/projects/gsmb/issues.json"
-
-#             response = requests.get(url, headers=headers)
-
-#             if response.status_code != 200:
-#                 return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
-
-#             issues = response.json().get("issues", [])
-
-#             return issues, None  # Returning the list of issues and no error
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
-
-
-
-
-#     @staticmethod
-#     def user_detail(user_id, token):
-#         api_key = JWTUtils.get_api_key_from_token(token)
-#         try:
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL or not api_key:
-#                 return None, "Redmine URL or API Key is missing"
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,  # Include the token for authorization
-#                 "Content-Type": "application/json"
-#             }
-#             url = f"{REDMINE_URL}/users/{user_id}.json"
-
-#             response = requests.get(
-#                 url,  # Ensure correct JSON structure
-#                 headers=headers
-#             )
-
-#             if response.status_code != 200:
-#                 return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
-
-#             user_detail = response.json().get("user", {})
-
-
-#             return user_detail, None  # Returning filtered issues and no error
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
-
-
-
-
-#     @staticmethod
-#     def add_new_license(token, payload):
-#         try:
-#             api_key = JWTUtils.get_api_key_from_token(token)
-
-#             if not api_key:
-#                 return None, "API Key is missing"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-
-#             url = f"{REDMINE_URL}/projects/gsmb/issues.json"
-
-#             # Validate and extract necessary fields from the payload
-#             issue_data = payload.get("issue", {})
-#             project_id = issue_data.get("project", {}).get("id")
-#             tracker_id = issue_data.get("tracker", {}).get("id")
-#             subject = issue_data.get("subject")
-#             status_id = issue_data.get("status", {}).get("id")
-#             start_date = issue_data.get("start_date")
-#             due_date = issue_data.get("due_date")
-#             estimated_hours = issue_data.get("estimated_hours")
-#             custom_fields = issue_data.get("custom_fields", [])
-
-#             if not all([project_id, tracker_id, subject, status_id, start_date, due_date, estimated_hours]):
-#               return None, "Missing required issue details"
-
-#             # Prepare data to send to Redmine
-#             data = {
-#                 "issue": {
-#                     "project_id": project_id,
-#                     "tracker_id": tracker_id,
-#                     "subject": subject,
-#                     "status_id": status_id,
-#                     "start_date": start_date,
-#                     "due_date": due_date,
-#                     "estimated_hours": estimated_hours,
-#                     "custom_fields": custom_fields,
-#                 }
-#             }
-
-#             response = requests.post(url, json=data, headers=headers)
-
-#             if response.status_code != 201:
-#                 return None, f"Failed to create license: {response.status_code} - {response.text}"
-
-#             new_license = response.json().get("issue", {})
-#             return new_license, None  # Returning the new license data and no error
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
- 
-
-
-
-# # Get License details
-
-
-#     @staticmethod
-#     def get_license_details(token, licenseId):
-        
-        
-#         try:
-            
-#             api_key = JWTUtils.get_api_key_from_token(token)
-#             if not api_key:
-#                 return None, "Invalid or missing API key in the token"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-#             if not REDMINE_URL:
-#                return None, "Environment variable 'REDMINE_URL' is not set"
-
-            
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,  # Include the token for authorization
-#                 "Content-Type": "application/json"
-#             }
-#             url = f"{REDMINE_URL}/issues/{licenseId}.json"
-
-#             response = requests.get(
-#                 url,  # Ensure correct JSON structure
-#                 headers=headers
-#             )
-
-#             if response.status_code != 200:
-#                 return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
-
-#             license_details = response.json().get("issue", {})  # Adjust according to actual JSON response structure
-#             return license_details, None
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
-
-
-
-
-
-
-
-
-
-# # Update license
-
-
-
-#     @staticmethod
-#     def update_license(token, payload, licenseId):
-#         try:
-#             api_key = JWTUtils.get_api_key_from_token(token)
-
-#             if not api_key:
-#                 return None, "API Key is missing"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-
-#             url = f"{REDMINE_URL}/issues/{licenseId}.json"
-
-#             # Validate and extract necessary fields from the payload
-#             issue_data = payload.get("issue", {})
-#             # project_id = issue_data.get("project", {}).get("id")
-#             # tracker_id = issue_data.get("tracker", {}).get("id")
-#             # subject = issue_data.get("subject")
-#             # status_id = issue_data.get("status", {}).get("id")
-#             # start_date = issue_data.get("start_date")
-#             # due_date = issue_data.get("due_date")
-#             # estimated_hours = issue_data.get("estimated_hours")
-#             custom_fields = issue_data.get("custom_fields", [])
-
-           
-#             if not custom_fields:
-#               return None, "No custom fields provided for update"
-
-#             # Prepare data to send to Redmine
-#             data = {
-#                 "issue": {
-#                     "custom_fields": custom_fields,
-#                 }
-#             }
-
-#             response = requests.put(url, json=data, headers=headers)
-
-#             if response.status_code == 204:
-#                 return {"success": True, "message": "License updated successfully."}, None
-
-#             if response.status_code != 200:
-#                return None, f"Failed to update license: {response.status_code} - {response.text}"
-
-#             updated_license = response.json().get("issue", {})
-#             return updated_license, None
-
-#         except Exception as e:
-#            return None, f"Server error: {str(e)}"
-        
-    
-    
-    
-    
-    
-#     @staticmethod
-#     def add_new_mlowner(token,userData):
-        
-#         try:
-#             api_key = JWTUtils.get_api_key_from_token(token)
-
-#             if not api_key:
-#                 return None, "API Key is missing"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-
-#             # Assume the userData payload looks like { 'user': { user_details_here } }
-#             user_details = userData.get('user', {})
-#             if not user_details:
-#                 return None, "User data is missing in the request"
-
-#             # You can expand this to match the structure your backend expects
-#             payload = {
-#                 "user": user_details
-#             }
-
-#             # Call the appropriate API or service to register the ML owner
-#             url = f"{REDMINE_URL}/users.json"
-#             response = requests.post(url, json=payload, headers=headers)
-
-#             if response.status_code != 201:
-#                 return None, f"Failed to add ML owner: {response.status_code} - {response.text}"
-
-#             new_owner = response.json().get("user", {})
-#             return new_owner, None
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
-        
-        
-        
-        
-    
-#     @staticmethod
-#     def assign_user_to_project(user_id, project_id, role_id, token):
-#         try:
-#             api_key = JWTUtils.get_api_key_from_token(token)
-
-#             if not api_key:
-#                 return None, "API Key is missing"
-
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-
-#             headers = {
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-
-#             # Prepare payload to assign user to project with the correct role
-#             payload = {
-#                 "membership": {
-#                     "user_id": user_id,
-#                     "role_ids": [role_id]  # Assign the correct role (ML Owner in this case)
-#                 }
-#             }
-
-#             url = f"{REDMINE_URL}/projects/{project_id}/memberships.json"
-#             response = requests.post(url, json=payload, headers=headers)
-
-#             if response.status_code != 201:
-#                 return None, f"Failed to assign user to project: {response.status_code} - {response.text}"
-
-#             # Return the assignment details if successful
-#             return response.json(), None
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"       
-
-
-
-
-
-
-
-
-#     @staticmethod
-#     def view_tpls(token):
-#         try:
-            
-#             api_key = JWTUtils.get_api_key_from_token(token)
-            
-#             if not api_key:
-#                 return None, "API Key is missing"
-            
-#             REDMINE_URL = os.getenv("REDMINE_URL")
-            
-#             if not REDMINE_URL:
-#                 return None, "Redmine URL is missing"
-            
-#             headers ={
-#                 "X-Redmine-API-Key": api_key,
-#                 "Content-Type": "application/json"
-#             }
-            
-#             # Fetch TPL issues from Redmine
-#             url = f"{REDMINE_URL}/projects/gsmb/issues.json"  # Assuming TPL issues have tracker_id=9
-#             response = requests.get(url, headers=headers)
-
-#             if response.status_code != 200:
-#                 return None, f"Failed to fetch TPL issues: {response.status_code} - {response.text}"
-
-#             issues = response.json().get("issues", [])
-#             return issues, None
-
-            
-
-#         except Exception as e:
-#             return None, f"Server error: {str(e)}"
-
-
-
-
-
-
-
-
-
-
-# Get mlowners old code
-
-
-    # @staticmethod
-    # def get_mlowners(token):
-        
-        
-    #    try:
-    #         api_key = JWTUtils.get_api_key_from_token(token)
-    #         if not api_key:
-    #             return None, "Invalid or missing API key in the token"
-
-    #         REDMINE_URL = os.getenv("REDMINE_URL")
-    #         if not REDMINE_URL:
-    #             return None, "Environment variable 'REDMINE_URL' is not set"
-
-    #         headers = {
-    #             "X-Redmine-API-Key": api_key,  # Include the token for authorization
-    #             "Content-Type": "application/json"
-    #         }
-    #         url = f"{REDMINE_URL}/projects/GSMB/memberships.json"
-        
-    #         response = requests.get(
-    #             url,  # Ensure correct JSON structure
-    #             headers=headers
-    #         )
-
-    #         if response.status_code != 200:
-    #             return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
-
-    #         # Get all users in the GSMB project
-    #         memberships = response.json().get("memberships", [])
-            
-    #         # Filter users by "MLOwner" role
-    #         ml_owners = [
-    #             membership for membership in memberships
-    #             if any(role["name"] == "MLOwner" for role in membership.get("roles", []))
-    #         ]
-            
-    #         # For each MLOwner, fetch their associated licenses and user details
-    #         owners_with_details_and_licenses = []
-    #         for owner in ml_owners:
-    #             user_id = owner['user']['id']
-                
-    #             # Fetch user details
-    #             user_response = requests.get(
-    #                 f"{REDMINE_URL}/users/{user_id}.json",
-    #                 headers=headers
-    #             )
-                
-                
-
-    #             if user_response.status_code != 200:
-    #                 return None, f"Failed to fetch user details: {user_response.status_code} - {user_response.text}"
-                
-
-    #             # Handle the response type
-    #             user_details = user_response.json()
-
-    #             if isinstance(user_details, list):
-    #                 user_details = user_details[0] if user_details else {}  # Assuming the list contains the user details
-    #             elif isinstance(user_details, dict):
-    #                 user_details = user_details.get("user", {})
-                    
-    #             # If user details still empty or invalid
-    #             if not user_details:
-    #                user_details = {}    
-
-            
-    #             licenses, error = GsmbOfficerService.get_user_licenses(user_id, token)
-
-    #             if error:
-    #                 return None, error
-
-    #             # Combine user details and licenses into one object
-    #             owners_with_details_and_licenses.append({
-    #                 "id": user_id,
-    #                 "owner_name": owner["user"]["name"],
-    #                 "user_details": user_details,
-    #                 "licenses": licenses
-    #             })
-
-    #         return owners_with_details_and_licenses, None
-
-    #    except Exception as e:
-    #     return None, f"Server error: {str(e)}"
-
-    # @staticmethod
-    # def get_user_licenses(user_id, token):
-    #    try:
-    #     # Get API Key from the token
-    #     api_key = JWTUtils.get_api_key_from_token(token)
-    #     if not api_key:
-    #         return None, "Invalid or missing API key in the token"
-
-    #     REDMINE_URL = os.getenv("REDMINE_URL")
-    #     if not REDMINE_URL:
-    #         return None, "Environment variable 'REDMINE_URL' is not set"
-
-    #     headers = {
-    #         "X-Redmine-API-Key": api_key,
-    #         "Content-Type": "application/json"
-    #     }
-
-    #     # Construct URL to get issues for a specific user
-    #     url = f"{REDMINE_URL}/projects/GSMB/issues.json?assigned_to_id={user_id}"
-    #     response = requests.get(url, headers=headers)
-        
-
-
-    #     if response.status_code != 200:
-    #         return None, f"Failed to fetch licenses: {response.status_code} - {response.text}"
-
-    #     issues = response.json().get("issues", [])
-
-    #     if not issues:
-    #         return [], None  # Return an empty list if no issues are found
-
-    #     # Filter out issues that are licenses (based on tracker type or custom fields)
-    #     licenses = [
-    #         issue for issue in issues
-    #         if issue.get('tracker', {}).get('name') == 'ML'
-    #     ]
-    
-
-    #     # After filtering, extract the custom fields and other necessary info for licenses
-    #     licenses_data = []
-    #     for issue in licenses:
-    #         license_number = None
-    #         location = None
-    #         capacity = None
-    #         issue_date = issue.get('start_date')
-    #         expiry_date = issue.get('due_date')
-
-    #         # Loop through the custom fields to extract License Number, Location, and Capacity
-    #         for field in issue.get('custom_fields', []):
-    #           if field.get('name') == 'License Number':
-    #             license_number = field.get('value')
-    #           elif field.get('name') == 'Location':
-    #             location = field.get('value')
-    #           elif field.get('name') == 'Capacity':
-    #             capacity = field.get('value')
-
-
-    #         # Add the processed data to licenses_data
-    #     licenses_data.append({
-    #        'licenseNumber': license_number,
-    #        'location': location,
-    #        'capacity': capacity,
-    #        'issueDate': issue_date,
-    #        'expiryDate': expiry_date
-    #     })
-        
-
-    #     return licenses_data, None
-    #    except Exception as e:
-    #     return None, f"Server error: {str(e)}"
+            return False, str(e)
+
+    @staticmethod    
+    def get_mlownersDetails(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+            if not admin_api_key:
+                return None, "Environment variable 'REDMINE_ADMIN_API_KEY' is not set"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            memberships_url = f"{REDMINE_URL}/projects/mmpro-gsmb/memberships.json"
+            memberships_response = requests.get(
+                memberships_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if memberships_response.status_code != 200:
+                return None, f"Failed to fetch memberships: {memberships_response.status_code} - {memberships_response.text}"
+
+            memberships = memberships_response.json().get("memberships", [])
+            ml_owner_ids = [
+                membership['user']['id'] for membership in memberships
+                if any(role["name"] == "MLOwner" for role in membership.get("roles", []))
+            ]
+
+            if not ml_owner_ids:
+                return [], None
+
+            users_url = f"{REDMINE_URL}/users.json?status=1&limit=100"
+            users_response = requests.get(
+                users_url,
+                headers={"X-Redmine-API-Key": admin_api_key, "Content-Type": "application/json"}
+            )
+
+            if users_response.status_code != 200:
+                return None, f"Failed to fetch user details: {users_response.status_code} - {users_response.text}"
+
+            all_users = users_response.json().get("users", [])
+
+            ml_owners_details = [
+                user for user in all_users if user["id"] in ml_owner_ids
+            ]
+
+            formatted_ml_owners = []
+            for ml_owner in ml_owners_details:
+                owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}".strip()
+                nic = next(
+                    (field["value"] for field in ml_owner.get("custom_fields", [])
+                    if field["name"] == "National Identity Card"),
+                    ""
+                )
+
+                formatted_owner = {
+                    "id": ml_owner["id"],
+                    "ownerName": owner_name,
+                    "NIC": nic
+                }
+
+                formatted_ml_owners.append(formatted_owner)
+
+            return formatted_ml_owners, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def get_appointments(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # 🔁 Tracker ID for Appointment = 11
+            appointment_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=11&project_id=1"
+            response = requests.get(
+                appointment_issues_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch appointment issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            formatted_appointments = []
+
+            for issue in issues:
+                formatted_appointment = {
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "status": issue.get("status", {}).get("name"),
+                    "author": issue.get("author", {}).get("name"),
+                    "tracker": issue.get("tracker", {}).get("name"),
+                    "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
+                    "start_date": issue.get("start_date"),
+                    "due_date": issue.get("due_date"),
+                    "description": issue.get("description"),
+                    "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number")
+                }
+                formatted_appointments.append(formatted_appointment)
+
+            return formatted_appointments, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
 
  
-    
-    
-    
-    
-    
-    
-    
-       
+    @staticmethod
+    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            author_id = JWTUtils.decode_jwt_and_get_user_id(token)
+
+            if not user_api_key or not author_id:
+                return None, "Invalid or missing API key or user ID"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            issue_payload = {
+                "issue": {
+                    "project_id": 1,
+                    "tracker_id": 11,  # Appointment tracker
+                    "status_id": 38,    # Default to 'New' or use your desired status ID
+                    "assigned_to_id": int(assigned_to_id),
+                    "author_id": author_id,
+                    "subject": "Appointment",
+                    "description": description,
+                    "start_date": start_date,
+                    "custom_fields": [
+                        {
+                            "id": 102,  # Replace with actual ID for "Mining License Number"
+                            "value": physical_meeting_location,
+                        }
+                    ]
+                }
+            }
+
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(issue_payload)
+            )
+
+            if response.status_code != 201:
+                return None, f"Failed to create appointment: {response.status_code} - {response.text}"
+
+            issue_id = response.json().get("issue", {}).get("id")
+            return issue_id, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"

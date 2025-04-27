@@ -25,7 +25,7 @@ class UserUtils:
             custom_fields = user_data.get("custom_fields", [])
 
             for field in custom_fields:
-                if field["name"] == "Phone Number":
+                if field["name"] == "Mobile Number":
                     return field.get("value", "N/A")  
                 
             return "N/A"  
