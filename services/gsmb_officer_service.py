@@ -258,7 +258,7 @@ class GsmbOfficerService:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
             # 🚀 Fetch all ML issues from Redmine
-            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=7"
             response = requests.get(
                 ml_issues_url,
                 headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
@@ -339,12 +339,9 @@ class GsmbOfficerService:
 
             issues = response.json().get("issues", [])
 
-            # Filter out issues with status_id 7
-            filtered_issues = [issue for issue in issues if issue['status']['id'] != 7]
-
             formatted_mls = []
 
-            for issue in filtered_issues:
+            for issue in issues:
                 custom_fields = issue.get("custom_fields", [])
                 attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
 
