@@ -232,9 +232,9 @@ class GsmbOfficerService:
                     "lorry_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Number"),
                     "driver_contact": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Driver Contact"),
                     "cubes": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Cubes"),
-                    "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+                    "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining issue id"),
                     "destination": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Destination"),
-                    "lorry_driver_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Driver Name"),
+                    # "lorry_driver_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Lorry Driver Name"),
                 
                 }
                 formatted_tpls.append(formatted_tpl)
@@ -258,7 +258,7 @@ class GsmbOfficerService:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
             # 🚀 Fetch all ML issues from Redmine
-            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=7"
             response = requests.get(
                 ml_issues_url,
                 headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
@@ -328,7 +328,7 @@ class GsmbOfficerService:
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
-            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=23"
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
             response = requests.get(
                 ml_issues_url,
                 headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
@@ -338,6 +338,7 @@ class GsmbOfficerService:
                 return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
 
             issues = response.json().get("issues", [])
+
             formatted_mls = []
 
             for issue in issues:
@@ -802,7 +803,7 @@ class GsmbOfficerService:
                 "issue": {
                     "project_id": 1,
                     "tracker_id": 11,  # Appointment tracker
-                    "status_id": 38,    # Default to 'New' or use your desired status ID
+                    "status_id": 34,    # Default to 'New' or use your desired status ID
                     "assigned_to_id": int(assigned_to_id),
                     "author_id": author_id,
                     "subject": "Appointment",
@@ -831,6 +832,41 @@ class GsmbOfficerService:
 
             issue_id = response.json().get("issue", {}).get("id")
             return issue_id, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+        
+    @staticmethod
+    def change_issue_status(token, issue_id, new_status_id):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+
+            if not user_api_key:
+                return None, "Invalid or missing API key"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            update_payload = {
+                "issue": {
+                    "status_id": new_status_id
+                }
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(update_payload)
+            )
+
+            if response.status_code != 204:
+                return None, f"Failed to update issue status: {response.status_code} - {response.text}"
+
+            return True, None
 
         except Exception as e:
             return None, f"Server error: {str(e)}"

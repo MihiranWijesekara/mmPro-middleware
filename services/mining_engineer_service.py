@@ -5,6 +5,7 @@ from utils.MLOUtils import MLOUtils
 from utils.jwt_utils import JWTUtils
 from utils.limit_utils import LimitUtils
 from werkzeug.utils import secure_filename 
+import json
 
 
 load_dotenv()
@@ -448,3 +449,38 @@ class MiningEnginerService:
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
 
+
+    @staticmethod
+    def change_issue_status(token, issue_id, new_status_id):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+
+            if not user_api_key:
+                return None, "Invalid or missing API key"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            update_payload = {
+                "issue": {
+                    "status_id": new_status_id
+                }
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(update_payload)
+            )
+
+            if response.status_code != 204:
+                return None, f"Failed to update issue status: {response.status_code} - {response.text}"
+
+            return True, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"

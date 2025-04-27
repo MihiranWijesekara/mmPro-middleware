@@ -208,4 +208,35 @@ def miningEngineer_reject(issue_id):
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}, 500
 
-   
+#ME Appointment Scheduled(status id = 31)
+#Hold (status id = 39)
+#Rejected(status id = 6)
+@mining_enginer_bp.route('/update-issue-status', methods=['POST'])
+@check_token
+@role_required(['miningEngineer'])
+def update_issue_status():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        data = request.get_json()
+        issue_id = data.get('issue_id')
+        new_status_id = data.get('new_status_id')
+
+        if not all([issue_id, new_status_id]):
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        result, error = MiningEnginerService.change_issue_status(
+            token,
+            issue_id,
+            new_status_id
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

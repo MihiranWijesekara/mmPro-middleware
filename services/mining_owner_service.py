@@ -173,8 +173,8 @@ class MLOwnerService:
                 custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
                 # Get required fields
-                license_number = issue.get("subject", "N/A")  
-
+                license_number = custom_fields_dict.get("Mining License Number", "N/A")  
+                divisional_secretary = custom_fields_dict.get("Divisional Secretary Division", "N/A")
                 owner_name = issue.get("Name of Applicant OR Company", "N/A")
                 location = custom_fields_dict.get("Name of village ", "N/A")
                 start_date = issue.get("start_date", "N/A")
@@ -193,6 +193,7 @@ class MLOwnerService:
                 # Append formatted issue data
                 relevant_issues.append({
                     "License Number": license_number,
+                    "Divisional Secretary Division": divisional_secretary,
                     "Owner Name": owner_name,
                     "Location": location,
                     "Start Date": start_date,
