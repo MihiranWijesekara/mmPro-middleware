@@ -79,12 +79,13 @@ class MLOwnerService:
                 custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
                 # Get required fields
-                license_number = issue.get("subject", "N/A")  # License number is in the "subject" field
+                license_number = custom_fields_dict.get("Mining License Number", "N/A")  # License number is in the "subject" field
                 owner_name = custom_fields_dict.get("Name of Applicant OR Company", "N/A")
                 location = custom_fields_dict.get("Name of village ", "N/A")
                 start_date = issue.get("start_date", "N/A")
                 due_date = issue.get("due_date", "N/A")
                 remaining_cubes = int(custom_fields_dict.get("Remaining", 0))
+                roylaty = int(custom_fields_dict.get("Royalty", 0))
 
                 # Determine status
                 current_date = datetime.now().date()
@@ -102,7 +103,8 @@ class MLOwnerService:
                     "Location": location,
                     "Start Date": start_date,
                     "Due Date": due_date,
-                    "Status": status
+                    "Status": status,
+                    "Royalty": roylaty
                 })
 
             print("Returning relevant issues")
@@ -174,12 +176,16 @@ class MLOwnerService:
 
                 # Get required fields
                 license_number = custom_fields_dict.get("Mining License Number", "N/A")  
+
+                license_number = custom_fields_dict.get("Mining License Number", "N/A")  
                 divisional_secretary = custom_fields_dict.get("Divisional Secretary Division", "N/A")
                 owner_name = issue.get("Name of Applicant OR Company", "N/A")
                 location = custom_fields_dict.get("Name of village ", "N/A")
                 start_date = issue.get("start_date", "N/A")
                 due_date = issue.get("due_date", "N/A")
                 remaining_cubes = int(custom_fields_dict.get("Remaining", 0))
+                royalty = custom_fields_dict.get("Royalty", "N/A")
+                
 
                 # Determine status
                 current_date = datetime.now().date()
@@ -199,7 +205,8 @@ class MLOwnerService:
                     "Start Date": start_date,
                     "Due Date": due_date,
                     "Remaining Cubes": remaining_cubes,
-                    "Status": status
+                    "Status": status,
+                    "Royalty": royalty
                 })
 
             # Return the relevant issue data
