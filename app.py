@@ -10,12 +10,12 @@ CORS(app)
 #     "origins": ["http://mmpro.aasait.lk:80/", "http://localhost:5173/"],  # List of allowed origins
 #     "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 # }})
-CORS(app, resources={r"/*": {
-    "origins": ["http://mmpro.aasait.lk", "http://localhost:5173" , "http://124.43.163.209:5000"],  # Allowed origins (no trailing slash)
-    "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Authorization"],  # Allowed headers
-    "supports_credentials": True  # Enable cookies or credentials if needed
-}})
+# CORS(app, resources={r"/*": {
+#     "origins": ["http://mmpro.aasait.lk", "http://localhost:5173" , "http://124.43.163.209:5000"],  # Allowed origins (no trailing slash)
+#     "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+#     "allow_headers": ["Content-Type", "Authorization"],  # Allowed headers
+#     "supports_credentials": True  # Enable cookies or credentials if needed
+# }})
 
 # Load environment variables
 app.config.from_pyfile('.env')
