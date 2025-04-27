@@ -1,5 +1,8 @@
+import os
+import tempfile
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required,check_token
+from services.auth_service import AuthService
 from services.mining_owner_service import MLOwnerService
 
 # Define the Blueprint for mining_owner
@@ -185,6 +188,49 @@ def user_detail(user_id):
             return jsonify({"error": error}), 500
 
         return jsonify({"user_detail": detail})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@mining_owner_bp.route('/ml-request', methods=['POST'])
+@check_token
+@role_required(['MLOwner'])
+def ml_request():
+    try:
+        token = request.headers.get('Authorization')
+        data = request.form.to_dict()
+
+        # Initialize custom_fields list
+        custom_fields = []
+
+        # Handle file uploads through AuthService
+        detailed_mine_file = request.files.get('detailed_mine_plan') 
+        payment_receipt_file = request.files.get('payment_receipt')  #Deed and Survey Plan
+        Deed_plan_file = request.files.get('Deed_plan')
+
+        detailed_mine_plan_id = AuthService.upload_file_to_redmine(detailed_mine_file) if detailed_mine_file else None
+        payment_receipt_id = AuthService.upload_file_to_redmine(payment_receipt_file) if payment_receipt_file else None
+        Deed_plan_id = AuthService.upload_file_to_redmine(Deed_plan_file) if Deed_plan_file else None
+
+        # Add file references to custom fields
+        if detailed_mine_plan_id:
+            custom_fields.append({"id": 72, "value": detailed_mine_plan_id})
+        if payment_receipt_id:
+            custom_fields.append({"id": 80, "value": payment_receipt_id})
+        if Deed_plan_id:
+            custom_fields.append({"id": 90, "value": Deed_plan_id})    
+        
+        # Update data with custom_fields
+        data['custom_fields'] = custom_fields
+        
+        # Call the service
+        issue, error = MLOwnerService.ml_request(data, token)
+        
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify(issue), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

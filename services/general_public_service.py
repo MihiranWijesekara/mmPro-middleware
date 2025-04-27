@@ -6,6 +6,7 @@ from twilio.base.exceptions import TwilioException
 from utils.jwt_utils import JWTUtils
 import random
 from diskcache import Cache
+from datetime import datetime, timedelta
 
 
 cache = Cache('otp_cache') 
@@ -74,14 +75,40 @@ class GeneralPublicService:
 
             tpl_issues = tpl_response.json().get("issues", [])
             lorry_number_lower = lorry_number.lower()
+            current_time = datetime.utcnow()
 
             # Check if any TPL license matches the given lorry number (cf_13)
-            tpl_license_exists = any(
-                any(cf["id"] == 53 and cf["value"].lower() == lorry_number_lower for cf in issue.get("custom_fields", []))
-                for issue in tpl_issues
-            )
+            for issue in tpl_issues:
+            # Check lorry number match
+                lorry_match = any(
+                    cf["id"] == 53 and cf["value"] and cf["value"].lower() == lorry_number_lower 
+                    for cf in issue.get("custom_fields", [])
+                )
+            
+                if lorry_match:
+                    # Check license validity
+                    created_on_str = issue.get("created_on")
+                    if not created_on_str:
+                        continue  # Skip if no creation date
+                
+                    try:
+                        created_on = datetime.strptime(created_on_str, "%Y-%m-%dT%H:%M:%SZ")
+                        estimated_hours = issue.get("estimated_hours", 0)
+                    
+                        # Calculate expiration time
+                        expiration_time = created_on + timedelta(hours=estimated_hours)
+                    
+                        # Check if license is still valid
+                        if current_time < expiration_time:
+                            return True, None  # Valid license found
+                        else:
+                            continue  # License expired, check next one
+                    except Exception as e:
+                        print(f"Error processing issue {issue.get('id')}: {str(e)}")
+                        continue
 
-            return tpl_license_exists, None
+            # If we get here, no valid license was found
+            return False, None
 
         except Exception as e:
             return None, f"Server error: {str(e)}"

@@ -46,7 +46,7 @@ class AuthService:
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
-                print(f"Checking project: {project_name}")
+                # print(f"Checking project: {project_name}")
                 if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
@@ -343,8 +343,214 @@ class AuthService:
         finally:
             # Delete the token from the cache
             cache.delete(cache_key)
-    
 
+    @staticmethod
+    def register_police_officer(login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers a Police Officer in Redmine with status = inactive.
+        """
+        return AuthService._register_officer("Police Officer", login, first_name, last_name, email, password, custom_fields)
+
+    @staticmethod
+    def register_gsmb_officer(login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers a GSMB Officer in Redmine with status = inactive.
+        """
+        return AuthService._register_officer("GSMB Officer", login, first_name, last_name, email, password, custom_fields)
+
+    @staticmethod
+    def _register_officer(role, login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers an officer in Redmine with status = inactive.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+
+        url = f"{REDMINE_URL}/users.json"
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "user": {
+                "login": login,
+                "firstname": first_name,
+                "lastname": last_name,
+                "mail": email,
+                "password": password,
+                "status": 3,  # Inactive
+                "custom_fields": custom_fields
+            }
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code in [200, 201]:
+            return response.json(), None
+        else:
+            return None, response.json()
+        
+    @staticmethod
+    def upload_file_to_redmine(file):
+        print("inside file upload")
+        """
+        Uploads a file to Redmine and returns the attachment ID.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        
+
+        url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
+
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type":"application/octet-stream",
+            "Accept": "application/json"
+        }
+
+
+        response = requests.post(url, headers=headers, data=file.stream)
+
+        if response.status_code == 201:
+             return response.json().get("upload", {}).get("id")   # Attachment ID
+        else:
+            return None  # Handle failed upload
+
+    @staticmethod   
+    def assign_role(user_id, role_name):
+        try:
+            # The role ID corresponding to the "PoliceOfficer" role in your project
+            role_ids = {
+                "PoliceOfficer": 7, 
+                "GSMBOfficer":6 # Role ID for "PoliceOfficer" as per your Redmine API response
+                # Add more roles and their IDs here as needed
+            }
+
+            # Get the correct role ID
+            role_id = role_ids.get(role_name)
+            if not role_id:
+                return None, f"Role '{role_name}' not found in the predefined role list."
+
+            # Add the user to the project with the role ID
+            membership_data = {
+                "membership": {
+                    "user_id": user_id,
+                    "role_ids": [role_id],  # Pass the role ID here, not the name
+                    "project_id": 1  # Ensure this is the correct project ID for GSMB
+                }
+            }
+
+            # Make the API call to add the user to the project with the role
+            response = requests.post(
+                f"{REDMINE_URL}/projects/1/memberships.json",  # Ensure the project ID is correct
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY},
+                json=membership_data
+            )
+
+            if response.status_code != 201:
+                return None, f"Failed to create membership: {response.text}"
+
+            return response.json(), None
+
+        except Exception as e:
+            return None, f"Error while assigning role: {str(e)}"    
+
+
+    @staticmethod
+    def register_mlowner(login, first_name, last_name, email, password, custom_fields, attachments=None):
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
+        try:
+            user_payload = {
+                "login": login,
+                "firstname": first_name,
+                "lastname": last_name,
+                "mail": email,
+                "password": password,
+                "custom_fields": custom_fields
+            }
+            
+            # Call Redmine API to create user
+            response = requests.post(f"{REDMINE_URL}/users.json", json={"user": user_payload}, headers={"X-Redmine-API-Key": API_KEY})
+            
+            if response.status_code != 201:
+                return None, response.json()
+            
+            user_id = response.json()["user"]["id"]
+            
+            # Upload file attachments if available
+            if attachments:
+                for custom_field_id, file_path in attachments.items():
+                    upload_response = requests.post(f"{REDMINE_URL}/uploads.json", files={"file": open(file_path, "rb")}, headers={"X-Redmine-API-Key": API_KEY})
+                    
+                    if upload_response.status_code == 201:
+                        token = upload_response.json()["upload"]["token"]
+                        update_payload = {"user": {"custom_fields": [{"id": custom_field_id, "value": token}]}}
+                        requests.put(f"{REDMINE_URL}/users/{user_id}.json", json=update_payload, headers={"X-Redmine-API-Key": API_KEY})
+            
+            return response.json(), None
+        
+        except Exception as e:
+            return None, str(e)
+    
+    @staticmethod
+    def upload_file_to_redmine(file):
+        """
+        Uploads a file to Redmine and returns the attachment ID.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+        
+        print("this is the description")
+        url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
+
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type":"application/octet-stream",
+            "Accept": "application/json"
+        }
+
+
+        response = requests.post(url, headers=headers, data=file.stream)
+
+        if response.status_code == 201:
+             return response.json().get("upload", {}).get("id")   # Attachment ID
+        else:
+            return None  # Handle failed upload
+
+    @staticmethod
+    def register_company(login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers a mining license company in Redmine.
+        """
+        REDMINE_URL = os.getenv("REDMINE_URL")
+        admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
+
+        url = f"{REDMINE_URL}/users.json"
+        headers = {
+            "X-Redmine-API-Key": admin_api_key,
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "user": {
+                "login": login,
+                "firstname": first_name,
+                "lastname": last_name,
+                "mail": email,
+                "password": password,
+                "custom_fields": custom_fields
+            }
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code in [200, 201]:
+            return response.json(), None
+        else:
+            return None, response.json()
+        
 
     # @staticmethod
     # def create_jwt_token(user_id,user_role, api_key):
