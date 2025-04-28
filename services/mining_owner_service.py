@@ -689,7 +689,7 @@ class MLOwnerService:
 
 
     @staticmethod
-    def ml_request(data, token, attachments=None):
+    def ml_request(data, token, user_mobile, attachments=None):
         try:
             # Get the Redmine URL from environment variables
             REDMINE_URL = os.getenv("REDMINE_URL")
@@ -728,6 +728,7 @@ class MLOwnerService:
                         {"id": 32, "value": data.get("divisional_secretary_division", "")},
                         {"id": 33, "value": data.get("administrative_district", "")},   
                         {"id": 92, "value": data.get("google_location", "")}, 
+                        {"id": 66, "value": user_mobile},
                         *data.get("custom_fields", [])                              
                     ]
                 }

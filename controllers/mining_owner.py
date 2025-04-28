@@ -4,6 +4,9 @@ from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import role_required,check_token
 from services.auth_service import AuthService
 from services.mining_owner_service import MLOwnerService
+from utils.jwt_utils import JWTUtils
+from utils.user_utils import UserUtils
+
 
 # Define the Blueprint for mining_owner
 mining_owner_bp = Blueprint('mining_owner', __name__)
@@ -200,6 +203,9 @@ def user_detail(user_id):
 def ml_request():
     try:
         token = request.headers.get('Authorization')
+        user_id = JWTUtils.decode_jwt_and_get_user_id(token)
+        user_mobile = UserUtils.get_user_phone(user_id)
+        print("user mobile", user_mobile)
         data = request.form.to_dict()
 
         # Initialize custom_fields list
@@ -226,7 +232,7 @@ def ml_request():
         data['custom_fields'] = custom_fields
         
         # Call the service
-        issue, error = MLOwnerService.ml_request(data, token)
+        issue, error = MLOwnerService.ml_request(data, token, user_mobile)
         
         if error:
             return jsonify({"error": error}), 400
@@ -236,7 +242,36 @@ def ml_request():
         return jsonify({"error": str(e)}), 500
 
 
+@mining_owner_bp.route('/validate-token', methods=['GET'])
+@check_token  # Ensures the token is present and valid
+def validate_token():
+    try:
+        # Extract token from the Authorization header
+        token = request.headers.get('Authorization')
+        
+        # Decode the token and get user ID
+        decoded = JWTUtils.decode_jwt_and_get_user_id(token)
+        mobile = UserUtils.get_user_phone(decoded)
+        
+        if not decoded['success']:
+            return jsonify({
+                "success": False,
+                "error": decoded['message']
+            }), 401  # Unauthorized if token is invalid/expired
+        
+        # Return the user ID if valid
+        return jsonify({
+            "success": True,
+            "user_id": decoded['user_id'],
+            "mobile":mobile,
+            "message": "Token is valid"
+        }), 200
 
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Token validation failed: {str(e)}"
+        }), 500
 
 
 
