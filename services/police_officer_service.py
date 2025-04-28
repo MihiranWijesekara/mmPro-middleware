@@ -90,7 +90,10 @@ class PoliceOfficerService:
             # Fetch corresponding Mining License (tracker_id = 4)
             ml_number = tpl_data["LicenseNumber"]
             if ml_number:
-                ml_params = {"tracker_id": 4, "subject": ml_number}
+                ml_params = {
+                    "tracker_id": 4,
+                    "cf_101": ml_number  # Search by Mining License Number custom field
+                }
                 ml_response = requests.get(f"{REDMINE_URL}/issues.json", params=ml_params, headers=headers)
 
                 if ml_response.status_code == 200:
@@ -98,7 +101,7 @@ class PoliceOfficerService:
                     if ml_issues:
                         mining_license = ml_issues[0]
                         mining_data = {
-                           # "licenseNumber": mining_license["subject"],
+                            # "licenseNumber": mining_license["subject"],
                             "owner": mining_license["assigned_to"]["name"] if isinstance(mining_license["assigned_to"], dict) else str(mining_license["assigned_to"]),
                             "License Start Date": mining_license["start_date"],
                             "License End Date": mining_license["due_date"],
@@ -108,6 +111,7 @@ class PoliceOfficerService:
                         tpl_data.update(mining_data)
 
             return tpl_data, None
+
 
         except Exception as e:
             return None, f"Server error: {str(e)}"    

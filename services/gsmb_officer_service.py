@@ -297,7 +297,6 @@ class GsmbOfficerService:
                     "capacity": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Capacity"),
                     "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
-                    "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
                     "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
                     
                     # Fetching File URLs from Attachments API
