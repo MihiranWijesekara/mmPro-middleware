@@ -203,8 +203,8 @@ def user_detail(user_id):
 def ml_request():
     try:
         token = request.headers.get('Authorization')
-        user_id = JWTUtils.decode_jwt_and_get_user_id(token)
-        user_mobile = UserUtils.get_user_phone(user_id)
+        response_data = JWTUtils.decode_jwt_and_get_user_id(token)
+        user_mobile = UserUtils.get_user_phone(response_data["user_id"])
         print("user mobile", user_mobile)
         data = request.form.to_dict()
 
@@ -241,37 +241,6 @@ def ml_request():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@mining_owner_bp.route('/validate-token', methods=['GET'])
-@check_token  # Ensures the token is present and valid
-def validate_token():
-    try:
-        # Extract token from the Authorization header
-        token = request.headers.get('Authorization')
-        
-        # Decode the token and get user ID
-        decoded = JWTUtils.decode_jwt_and_get_user_id(token)
-        mobile = UserUtils.get_user_phone(decoded)
-        
-        if not decoded['success']:
-            return jsonify({
-                "success": False,
-                "error": decoded['message']
-            }), 401  # Unauthorized if token is invalid/expired
-        
-        # Return the user ID if valid
-        return jsonify({
-            "success": True,
-            "user_id": decoded['user_id'],
-            "mobile":mobile,
-            "message": "Token is valid"
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Token validation failed: {str(e)}"
-        }), 500
 
 
 
