@@ -6,6 +6,7 @@ from services.gsmb_officer_service import GsmbOfficerService
 import os
 from werkzeug.utils import secure_filename
 import tempfile
+from utils.user_utils import UserUtils
 
 
 # Define the Blueprint for gsmb_officer
@@ -389,6 +390,8 @@ def get_mining_license_counts():
 def upload_mining_license():
     try:
         token = request.headers.get('Authorization')
+        ml_owner_id = request.form.get('assignee_id')
+        user_mobile = UserUtils.get_user_phone(ml_owner_id)
 
         if not token:
             return jsonify({"error": "Authorization token is missing"}), 400
@@ -416,6 +419,7 @@ def upload_mining_license():
             "assignee_id": request.form.get('assignee_id'),
             "mining_license_number": request.form.get('mining_license_number'),
             "month_capacity": request.form.get('month_capacity'),
+            "mobile_number":user_mobile
         }
 
         # check for required fields
