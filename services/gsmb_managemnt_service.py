@@ -767,8 +767,8 @@ class GsmbManagmentService:
             headers=headers
             )
 
-            if response.status_code == 201:
-                return response.json(), None
+            if response.status_code == 204:
+               return {"status": "success", "message": "User activated successfully"}, None
             else:
                 error_msg = f"Failed to User Active. Status: {response.status_code}"
                 try:
