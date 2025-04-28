@@ -22,6 +22,7 @@ class UserUtils:
 
             user_data = response.json().get("user", {})
 
+            print("user_data", user_data)
             custom_fields = user_data.get("custom_fields", [])
 
             for field in custom_fields:
