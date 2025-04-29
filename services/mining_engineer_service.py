@@ -327,7 +327,7 @@ class MiningEnginerService:
                     "project_id": 1,
                     "tracker_id": 12,  # MeAppointment tracker
                     "status_id": 31,   # ME Appointment Scheduled
-                    "subject": f"Site Visit for ML {mining_license_number}",
+                    "subject": f"Site Visit for Mining License {mining_license_number}",
                     "start_date": start_date,
                     "assigned_to_id": user_Id,
                     "custom_fields": [
@@ -485,4 +485,56 @@ class MiningEnginerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-       
+    
+    @staticmethod
+    def get_me_appointments(token):
+        """Get all ME Appointments for the current mining engineer"""
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return {"error": "Redmine URL not configured"}
+
+            api_key = JWTUtils.get_api_key_from_token(token)
+            if not api_key:
+                return {"error": "Invalid API token"}
+
+            # user_info = MLOUtils.get_user_info_from_token(token)
+            # if not user_info:
+            #     return {"error": "Failed to get user info"}
+
+            params = {
+                "project_id": 1,
+                "tracker_id": 12,  # ME Appointment tracker
+                # "assigned_to_id": user_info["user_id"],
+                # "status_id": "open",  # Only show open appointments
+                "limit": 100
+            }
+
+            response = requests.get(
+                f"{REDMINE_URL}/issues.json",
+                headers={"X-Redmine-API-Key": api_key},
+                params=params,
+                timeout=30
+            )
+
+            if response.status_code != 200:
+                return {"error": f"Redmine API error: {response.status_code}"}
+
+            appointments = []
+            for issue in response.json().get("issues", []):
+                appointments.append({
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "start_date": issue.get("start_date"),
+                    "status": issue.get("status", {}).get("name"),
+                    "mining_license": next(
+                        (cf["value"] for cf in issue.get("custom_fields", []) 
+                        if cf.get("id") == 101),
+                        None
+                    )
+                })
+
+            return {"appointments": appointments}
+
+        except Exception as e:
+            return {"error": f"Server error: {str(e)}"}
