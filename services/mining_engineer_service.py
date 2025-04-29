@@ -76,8 +76,8 @@ class MiningEnginerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4,  # ML tracker ID
-                "status_id": 26 
+                "tracker_id": 4 , # ML tracker ID
+                "status_id": "!7"
             }
 
             headers = {
