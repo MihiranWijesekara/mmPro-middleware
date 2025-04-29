@@ -828,7 +828,7 @@ class MLOwnerService:
 
             user_id = user_response["user_id"]
             if not user_id:
-                return None, f"Failed to extract user info: {error}"
+                return None, f"Failed to extract user info"
 
             REDMINE_URL = os.getenv("REDMINE_URL")
             if not REDMINE_URL:
