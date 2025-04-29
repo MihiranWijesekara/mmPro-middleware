@@ -460,6 +460,73 @@ def upload_mining_license():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@gsmb_officer_bp.route('/approve-physical-document', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def upload_payment_receipt():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Extract form-data
+        
+        payment_receipt = request.files.get('payment_receipt')
+
+        
+        payment_receipt_id = GsmbOfficerService.upload_file_to_redmine(payment_receipt)
+        
+        data = {
+            "comments":request.form.get('comments'),
+            "mining_request_id":request.form.get('mining_request_id'),
+            "payment_receipt_id":payment_receipt_id
+        }
+
+        result, error = GsmbOfficerService.upload_payment_receipt(
+            token,
+            data
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Payment receipt uploaded successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gsmb_officer_bp.route('/reject-physical-document', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def reject_physical_document():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Extract form-data
+        comments = request.form.get('comments')
+        mining_request_id = request.form.get('mining_request_id')
+
+        if not comments or not mining_request_id:
+            return jsonify({"error": "Missing comments or mining_request_id"}), 400
+
+        data = {
+            "comments": comments,
+            "mining_request_id": mining_request_id
+        }
+
+        result, error = GsmbOfficerService.reject_mining_request(token, data)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Mining request rejected successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @gsmb_officer_bp.route('/get-mlownersWithNic', methods=['GET'])
