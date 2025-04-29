@@ -589,7 +589,7 @@ class MLOwnerService:
 
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
-    
+
             if not REDMINE_URL or not API_KEY:
                 return None, "System configuration error - missing Redmine URL or API Key"
 
@@ -597,10 +597,10 @@ class MLOwnerService:
             if not user_id:
                 return None, f"Authentication error: {error}"
 
+            # Get all TPL issues (tracker_id=5) without filtering by custom field in params
             params = {
                 "project_id": 1,
                 "tracker_id": 5,
-                "cf_59": mining_license_number.strip()
             }
 
             headers = {
@@ -624,13 +624,25 @@ class MLOwnerService:
         
             for issue in issues:
                 try:
-                    custom_fields = {
-                        field["name"]: field["value"] 
-                        for field in issue.get("custom_fields", [])
-                    }
-            
-                    if custom_fields.get("Mining License Number") != mining_license_number:
+                    # Get all custom fields for this issue
+                    custom_fields = issue.get("custom_fields", [])
+                    
+                    # Find the Mining issue id (custom field 59)
+                    mining_issue_id = None
+                    for field in custom_fields:
+                        if field.get("id") == 59:
+                            mining_issue_id = field.get("value")
+                            break
+                    
+                    # Skip if this TPL doesn't belong to our mining license
+                    if not mining_issue_id or mining_issue_id != mining_license_number.strip():
                         continue
+
+                    # Convert custom fields to dictionary for easier access
+                    custom_fields_dict = {
+                        field["name"]: field["value"] 
+                        for field in custom_fields
+                    }
 
                     created_date = None
                     estimated_hours = issue.get("estimated_hours")
@@ -657,13 +669,13 @@ class MLOwnerService:
                             "license_number": mining_license_number,
                             "subject": issue.get("subject", ""),
                             "status": status,
-                            "lorry_number": custom_fields.get("Lorry Number"),
-                            "driver_contact": custom_fields.get("Driver Contact"),
-                            "destination": custom_fields.get("Destination"),
-                            "Route_01": custom_fields.get("Route 01"),
-                            "Route_02": custom_fields.get("Route 02"),
-                            "Route_03": custom_fields.get("Route 03"),
-                            "cubes": custom_fields.get("Cubes"),  
+                            "lorry_number": custom_fields_dict.get("Lorry Number"),
+                            "driver_contact": custom_fields_dict.get("Driver Contact"),
+                            "destination": custom_fields_dict.get("Destination"),
+                            "Route_01": custom_fields_dict.get("Route 01"),
+                            "Route_02": custom_fields_dict.get("Route 02"),
+                            "Route_03": custom_fields_dict.get("Route 03"),
+                            "cubes": custom_fields_dict.get("Cubes"),  
                             "Create_Date": issue.get("created_on", ""),
                             "Estimated Hours": estimated_hours,
                         }
@@ -684,7 +696,7 @@ class MLOwnerService:
             return None, f"Network error: {str(e)}"
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
-        return None, f"Processing error: {str(e)}"
+            return None, f"Processing error: {str(e)}"
     
 
 
@@ -741,8 +753,34 @@ class MLOwnerService:
                 return None, f"Failed to create issue: {response.text}"
         
             issue_id = response.json()["issue"]["id"]
+            issue_id = response.json()["issue"]["id"]
+        
+        # Now, update the Mining License Number field with LLL/100/{issue_id}
+            update_payload = {
+                "issue": {
+                    "custom_fields": [
+                        {
+                            "id": 101,  # Mining License Number field ID
+                            "value": f"ML Request LLL/100/{issue_id}"
+                        }
+                    ]
+                }
+            }
+
+            update_response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if update_response.status_code != 204:
+                return None, f"Failed to update Mining License Number: {update_response.status_code} - {update_response.text}"
+
+            # Return the complete issue data including the updated mining license number
+            issue_data = response.json()
+            issue_data["issue"]["mining_license_number"] = f"LLL/100/{issue_id}"
             
-            return response.json(), None
+            return issue_data, None
 
         except requests.exceptions.RequestException as e:
             return None, f"Request failed: {str(e)}"
