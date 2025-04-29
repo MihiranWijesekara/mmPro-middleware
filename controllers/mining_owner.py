@@ -205,7 +205,7 @@ def ml_request():
         token = request.headers.get('Authorization')
         response_data = JWTUtils.decode_jwt_and_get_user_id(token)
         user_mobile = UserUtils.get_user_phone(response_data["user_id"])
-        print("user mobile", user_mobile)
+
         data = request.form.to_dict()
 
         # Initialize custom_fields list

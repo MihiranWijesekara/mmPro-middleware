@@ -520,9 +520,10 @@ def create_appointment():
         physical_meeting_location = data.get('physical_meeting_location')
         start_date = data.get('start_date')
         description = data.get('description')
+        mining_request_id = data.get("mining_request_id")
 
         # Validate required fields
-        if not all([assigned_to_id, physical_meeting_location, start_date, description]):
+        if not all([assigned_to_id, physical_meeting_location, start_date, description, mining_request_id]):
             return jsonify({"error": "Missing required parameters"}), 400
 
         result, error = GsmbOfficerService.create_appointment(
@@ -530,7 +531,8 @@ def create_appointment():
             assigned_to_id, 
             physical_meeting_location, 
             start_date, 
-            description
+            description,
+            mining_request_id
         )
 
         if error:
