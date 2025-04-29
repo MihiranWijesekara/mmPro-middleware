@@ -657,7 +657,7 @@ class MLOwnerService:
 
             for issue in issues:
                 try:
-    # Get all custom fields for this issue
+                    # Get all custom fields for this issue
                     custom_fields = issue.get("custom_fields", [])
                     
                     # Find the Mining issue id (custom field 59)
@@ -675,77 +675,50 @@ class MLOwnerService:
                     custom_fields_dict = {
                         field["name"]: field["value"] 
                         for field in custom_fields
-
                     }
-
-                    # --------------------------------------------------------------
-                    # REMOVED THE REDUNDANT CHECK HERE:
-                    # if custom_fields.get("Mining License Number") != mining_license_number:
-                    #    continue
-                    # The API filter cf_59=... should handle this already.
-                    # If you still face issues, double-check cf_59 is the correct ID
-                    # for "Mining issue id" in your Redmine instance.
-                    # --------------------------------------------------------------
 
                     # --- Calculate Status ---
                     created_date_str = issue.get("created_on")
-                    estimated_hours_str = issue.get("estimated_hours") # Keep as string initially
-                    status = "Undetermined" # Default status
+                    estimated_hours_str = issue.get("estimated_hours")  # Keep as string initially
+                    status = "Undetermined"  # Default status
 
-                    if created_date_str and estimated_hours_str is not None: # Check estimated_hours is not None
+                    if created_date_str and estimated_hours_str is not None:
                         try:
                             created_date = datetime.strptime(created_date_str, "%Y-%m-%dT%H:%M:%SZ")
-                            # Make created_date timezone-aware (UTC)
-                            # created_date = created_date.replace(tzinfo=timezone.utc) 
-                            # If comparing with datetime.now(), make sure both are aware or naive
-
-                            estimated_hours = float(estimated_hours_str) # Convert to float safely here
+                            estimated_hours = float(estimated_hours_str)
                             
-                            # Calculate expiration datetime
                             expiration_datetime = created_date + timedelta(hours=estimated_hours)
+                            status = "Active" if current_datetime < expiration_datetime else "Expired"
 
-                            # Compare (ensure timezones match if necessary)
-                            # For simplicity, assuming naive UTC or local time comparison here
-                            if current_datetime < expiration_datetime:
-                                status = "Active"
-                            else:
-                                status = "Expired"
+                        except ValueError as e:
+                            print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
+                            continue  # Skip to next issue on error
 
-                        else:
-                            # If we don't have both created_date and estimated_hours, we can't determine status
-                            status = "Undetermined"
+                    tpl_data = {
+                        "tpl_id": issue.get("id"),
+                        "license_number": mining_license_number,
+                        "subject": issue.get("subject", ""),
+                        "status": status,
+                        "lorry_number": custom_fields_dict.get("Lorry Number"),
+                        "driver_contact": custom_fields_dict.get("Driver Contact"),
+                        "destination": custom_fields_dict.get("Destination"),
+                        "Route_01": custom_fields_dict.get("Route 01"),
+                        "Route_02": custom_fields_dict.get("Route 02"),
+                        "Route_03": custom_fields_dict.get("Route 03"),
+                        "cubes": custom_fields_dict.get("Cubes"),  
+                        "Create_Date": issue.get("created_on", ""),
+                        "Estimated Hours": estimated_hours_str,
+                    }
 
-                        tpl_data = {
-                            "tpl_id": issue.get("id"),
-                            "license_number": mining_license_number,
-                            "subject": issue.get("subject", ""),
-                            "status": status,
-                            "lorry_number": custom_fields_dict.get("Lorry Number"),
-                            "driver_contact": custom_fields_dict.get("Driver Contact"),
-                            "destination": custom_fields_dict.get("Destination"),
-                            "Route_01": custom_fields_dict.get("Route 01"),
-                            "Route_02": custom_fields_dict.get("Route 02"),
-                            "Route_03": custom_fields_dict.get("Route 03"),
-                            "cubes": custom_fields_dict.get("Cubes"),  
-                            "Create_Date": issue.get("created_on", ""),
-                            "Estimated Hours": estimated_hours,
-                        }
-                
-                        tpl_list.append(tpl_data)
-                
-                    except ValueError as e:
-                        print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
-                        continue
-
+                    tpl_list.append(tpl_data)
 
                 except Exception as e:
-                    # Log errors processing individual issues but continue with others
                     print(f"Error processing issue {issue.get('id', 'N/A')}: {str(e)}")
-                    # Optionally: add a placeholder or skip the issue
                     continue
 
-            print(f"Finished processing. Returning {len(tpl_list)} TPLs.") # Debugging
+            print(f"Finished processing. Returning {len(tpl_list)} TPLs.")  # Debugging
             return tpl_list, None
+
 
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error connecting to Redmine: {str(e)}"
