@@ -288,8 +288,8 @@ class GsmbOfficerService:
                     "due_date": issue.get("due_date"),
                     "exploration_licence_no": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Exploration Licence No"),
                     "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of Applicant OR Company"),
-                    "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details) "),
-                    "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owners’ name"),
+                    "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details)"),
+                    "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owner name"),
                     "village_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of village "),
                     "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Grama Niladhari Division"),
                     "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Divisional Secretary Division"),
@@ -299,6 +299,7 @@ class GsmbOfficerService:
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
                     "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
+                    "license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     
                     # Fetching File URLs from Attachments API
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
@@ -432,6 +433,8 @@ class GsmbOfficerService:
                         lorry_number = field.get("value")
                     elif field.get("name") == "Mobile Number":
                         mobile_number = field.get("value")
+                    elif field.get("name") == "Role":
+                        role = field.get("value")
 
                 # 🛠️ Format complaint_date
                 created_on = issue.get("created_on")
@@ -449,6 +452,7 @@ class GsmbOfficerService:
                     "lorry_number": lorry_number,
                     "mobile_number": mobile_number,
                     "complaint_date": complaint_date,
+                    "role": role,
                 }
                 formatted_complaints.append(formatted_complaint)
 
