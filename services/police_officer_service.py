@@ -90,23 +90,34 @@ class PoliceOfficerService:
             # Fetch corresponding Mining License (tracker_id = 4)
             ml_number = tpl_data["LicenseNumber"]
             if ml_number:
+                # First get all mining license issues (tracker_id=4)
                 ml_params = {
                     "tracker_id": 4,
-                    "cf_101": ml_number  # Search by Mining License Number custom field
+                    "status_id": "*"  # Include all statuses or specify if needed
                 }
                 ml_response = requests.get(f"{REDMINE_URL}/issues.json", params=ml_params, headers=headers)
 
                 if ml_response.status_code == 200:
                     ml_issues = ml_response.json().get("issues", [])
-                    if ml_issues:
-                        mining_license = ml_issues[0]
+                    
+                    # Find the issue where custom field 101 matches our license number
+                    matching_license = None
+                    for issue in ml_issues:
+                        # Search through custom fields for field ID 101 with matching value
+                        for cf in issue.get("custom_fields", []):
+                            if cf.get("id") == 101 and str(cf.get("value")) == str(ml_number):
+                                matching_license = issue
+                                break
+                        if matching_license:
+                            break
+
+                    if matching_license:
                         mining_data = {
-                            # "licenseNumber": mining_license["subject"],
-                            "owner": mining_license["assigned_to"]["name"] if isinstance(mining_license["assigned_to"], dict) else str(mining_license["assigned_to"]),
-                            "License Start Date": mining_license["start_date"],
-                            "License End Date": mining_license["due_date"],
-                            "License Owner Contact Number": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 66), None),
-                            "Grama Niladhari Division": next((cf["value"] for cf in mining_license["custom_fields"] if cf["id"] == 31), None),
+                            "owner": matching_license["assigned_to"]["name"] if isinstance(matching_license["assigned_to"], dict) else str(matching_license["assigned_to"]),
+                            "License Start Date": matching_license["start_date"],
+                            "License End Date": matching_license["due_date"],
+                            "License Owner Contact Number": next((cf["value"] for cf in matching_license["custom_fields"] if cf.get("id") == 66), None),
+                            "Grama Niladhari Division": next((cf["value"] for cf in matching_license["custom_fields"] if cf.get("id") == 31), None),
                         }
                         tpl_data.update(mining_data)
 
