@@ -287,6 +287,92 @@ class MiningEnginerService:
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
 
+    @staticmethod
+    def create_ml_appointment(token, start_date,mining_license_number):
+        """
+        Creates a Mining Engineer appointment in Redmine.
+        
+        Args:
+            token: JWT token for authentication
+            start_date: Appointment date (YYYY-MM-DD)
+            mining_license_number: License number to associate
+            
+        Returns:
+            Tuple (created_issue_data, error_message)
+        """
+        try:
+            # 1. Get Redmine configuration
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Redmine URL not configured"
+
+            # 2. Extract API key and user info from token
+            api_key = JWTUtils.get_api_key_from_token(token)
+            if not api_key:
+                return None, "Invalid API token"
+
+            user_Id, error = MLOUtils.get_user_info_from_token(token)
+            if not user_Id:
+                return None, f"User info error: {error}"
+
+            # 3. Extract ML issue ID from license number (format: LLL/100/206)
+            try:
+                ml_issue_id = int(mining_license_number.split('/')[-1])
+            except (IndexError, ValueError):
+                return None, "Invalid mining license number format. Expected LLL/100/ID"
+
+            # 4. Prepare and create appointment
+            payload = {
+                "issue": {
+                    "project_id": 1,
+                    "tracker_id": 12,  # MeAppointment tracker
+                    "status_id": 31,   # ME Appointment Scheduled
+                    "subject": f"Site Visit for Mining License {mining_license_number}",
+                    "start_date": start_date,
+                    "assigned_to_id": user_Id,
+                    "custom_fields": [
+                        {
+                            "id": 101,  # Mining License Number field
+                            "value": mining_license_number
+                        }
+                    ]
+                }
+            }
+
+            # Create the appointment
+            response = requests.post(
+                f"{REDMINE_URL}/issues.json",
+                headers={
+                    "X-Redmine-API-Key": api_key,
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=30
+            )
+
+            if response.status_code != 201:
+                error_msg = f"Redmine error creating appointment ({response.status_code}): {response.text[:200]}"
+                return None, error_msg
+
+            # 5. Update the original ML issue status
+            success, status_error = MiningEnginerService.change_issue_status(
+                token=token,
+                issue_id=ml_issue_id,
+                new_status_id=31  # ME Appointment Scheduled
+            )
+
+            if not success:
+                # Log but don't fail the whole operation
+                print(f"Warning: Created appointment but failed to update ML status: {status_error}")
+                # You might want to implement retry logic here
+
+            return response.json(), None
+
+        except requests.exceptions.RequestException as e:
+            return None, f"Network error: {str(e)}"
+        except Exception as e:
+            return None, f"Unexpected error: {str(e)}"
+
 
     @staticmethod
     def change_issue_status(token, issue_id, new_status_id):
@@ -399,4 +485,56 @@ class MiningEnginerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
-       
+    
+    @staticmethod
+    def get_me_appointments(token):
+        """Get all ME Appointments for the current mining engineer"""
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return {"error": "Redmine URL not configured"}
+
+            api_key = JWTUtils.get_api_key_from_token(token)
+            if not api_key:
+                return {"error": "Invalid API token"}
+
+            # user_info = MLOUtils.get_user_info_from_token(token)
+            # if not user_info:
+            #     return {"error": "Failed to get user info"}
+
+            params = {
+                "project_id": 1,
+                "tracker_id": 12,  # ME Appointment tracker
+                # "assigned_to_id": user_info["user_id"],
+                # "status_id": "open",  # Only show open appointments
+                "limit": 100
+            }
+
+            response = requests.get(
+                f"{REDMINE_URL}/issues.json",
+                headers={"X-Redmine-API-Key": api_key},
+                params=params,
+                timeout=30
+            )
+
+            if response.status_code != 200:
+                return {"error": f"Redmine API error: {response.status_code}"}
+
+            appointments = []
+            for issue in response.json().get("issues", []):
+                appointments.append({
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "start_date": issue.get("start_date"),
+                    "status": issue.get("status", {}).get("name"),
+                    "mining_license": next(
+                        (cf["value"] for cf in issue.get("custom_fields", []) 
+                        if cf.get("id") == 101),
+                        None
+                    )
+                })
+
+            return {"appointments": appointments}
+
+        except Exception as e:
+            return {"error": f"Server error: {str(e)}"}

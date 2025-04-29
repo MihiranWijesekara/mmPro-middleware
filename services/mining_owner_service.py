@@ -817,4 +817,135 @@ class MLOwnerService:
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
         
-                
+    @staticmethod
+    def get_mining_license_requests(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            user_response = JWTUtils.decode_jwt_and_get_user_id(token)
+
+            user_id = user_response["user_id"]
+            if not user_id:
+                return None, f"Failed to extract user info"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=!7"
+            response = requests.get(
+                ml_issues_url,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+
+            formatted_mls = []
+
+            for issue in issues:
+                assigned_to = issue.get("assigned_to", {})
+                assigned_to_id = assigned_to.get("id")
+
+                # ✅ Filter: only include issues assigned to current user
+                if assigned_to_id != user_id:
+                    continue
+
+                custom_fields = issue.get("custom_fields", [])
+                attachment_urls = MLOwnerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
+                assigned_to_details = None
+                if assigned_to_id:
+                    user_response = requests.get(
+                        f"{REDMINE_URL}/users/{assigned_to_id}.json",
+                        headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+                    )
+                    if user_response.status_code == 200:
+                        assigned_to_details = user_response.json().get("user", {})
+
+                ml_data = {
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "status": issue.get("status", {}).get("name"),
+                    "assigned_to": assigned_to.get("name"),
+                    "created_on": issue.get("created_on"),
+                    "assigned_to_details": {
+                        "id": assigned_to_details.get("id"),
+                        "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
+                        "email": assigned_to_details.get("mail"),
+                        "custom_fields": assigned_to_details.get("custom_fields", [])
+                    } if assigned_to_details else None,
+                    "exploration_licence_no": MLOwnerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
+                    "land_name": MLOwnerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
+                    "land_owner_name": MLOwnerService.get_custom_field_value(custom_fields, "Land owner name"),
+                    "village_name": MLOwnerService.get_custom_field_value(custom_fields, "Name of village "),
+                    "grama_niladhari_division": MLOwnerService.get_custom_field_value(custom_fields, "Grama Niladhari Division"),
+                    "divisional_secretary_division": MLOwnerService.get_custom_field_value(custom_fields, "Divisional Secretary Division"),
+                    "administrative_district": MLOwnerService.get_custom_field_value(custom_fields, "Administrative District"),
+                    "google_location": MLOwnerService.get_custom_field_value(custom_fields, "Google location "),
+                    "mobile_number": MLOwnerService.get_custom_field_value(custom_fields, "Mobile Number"),
+                    "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+                    "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
+                    "payment_receipt": attachment_urls.get("Payment Receipt"),
+                }
+
+                formatted_mls.append(ml_data)
+
+            return formatted_mls, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
+        
+    @staticmethod
+    def get_attachment_urls(api_key, redmine_url, custom_fields):
+        try:
+            # Define the mapping of custom field names to their attachment IDs
+            file_fields = {
+                "Economic Viability Report": None,
+                "License fee receipt": None,
+                "Detailed Mine Restoration Plan": None,
+                "Professional": None,
+                "Deed and Survey Plan": None,
+                "Payment Receipt": None
+            }
+
+            # Extract attachment IDs from custom fields
+            for field in custom_fields:
+                field_name = field.get("name")
+                attachment_id = field.get("value")
+
+                if field_name in file_fields and attachment_id.isdigit():
+                    file_fields[field_name] = attachment_id
+
+            # Fetch URLs for valid attachment IDs
+            file_urls = {}
+            for field_name, attachment_id in file_fields.items():
+                if attachment_id:
+                    attachment_url = f"{redmine_url}/attachments/{attachment_id}.json"
+                    response = requests.get(
+                        attachment_url,
+                        headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+                    )
+
+                    if response.status_code == 200:
+                        attachment_data = response.json().get("attachment", {})
+                        file_urls[field_name] = attachment_data.get("content_url", "")
+
+            return file_urls
+
+        except Exception as e:
+            return {}
+
+
+    @staticmethod
+    def get_custom_field_value(custom_fields, field_name):
+        """Helper function to extract custom field value by name."""
+        for field in custom_fields:
+            if field.get("name") == field_name:
+                return field.get("value")
+        return None
