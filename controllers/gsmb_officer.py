@@ -6,6 +6,7 @@ from services.gsmb_officer_service import GsmbOfficerService
 import os
 from werkzeug.utils import secure_filename
 import tempfile
+from utils.user_utils import UserUtils
 
 
 # Define the Blueprint for gsmb_officer
@@ -389,6 +390,8 @@ def get_mining_license_counts():
 def upload_mining_license():
     try:
         token = request.headers.get('Authorization')
+        ml_owner_id = request.form.get('assignee_id')
+        user_mobile = UserUtils.get_user_phone(ml_owner_id)
 
         if not token:
             return jsonify({"error": "Authorization token is missing"}), 400
@@ -416,6 +419,7 @@ def upload_mining_license():
             "assignee_id": request.form.get('assignee_id'),
             "mining_license_number": request.form.get('mining_license_number'),
             "month_capacity": request.form.get('month_capacity'),
+            "mobile_number":user_mobile
         }
 
         # check for required fields
@@ -453,6 +457,73 @@ def upload_mining_license():
             return jsonify({"error": error}), 500
 
         return jsonify({"success": True, "message": "Mining license uploaded successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@gsmb_officer_bp.route('/approve-physical-document', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def upload_payment_receipt():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Extract form-data
+        
+        payment_receipt = request.files.get('payment_receipt')
+
+        
+        payment_receipt_id = GsmbOfficerService.upload_file_to_redmine(payment_receipt)
+        
+        data = {
+            "comments":request.form.get('comments'),
+            "mining_request_id":request.form.get('mining_request_id'),
+            "payment_receipt_id":payment_receipt_id
+        }
+
+        result, error = GsmbOfficerService.upload_payment_receipt(
+            token,
+            data
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Payment receipt uploaded successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gsmb_officer_bp.route('/reject-physical-document', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def reject_physical_document():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Extract form-data
+        comments = request.form.get('comments')
+        mining_request_id = request.form.get('mining_request_id')
+
+        if not comments or not mining_request_id:
+            return jsonify({"error": "Missing comments or mining_request_id"}), 400
+
+        data = {
+            "comments": comments,
+            "mining_request_id": mining_request_id
+        }
+
+        result, error = GsmbOfficerService.reject_mining_request(token, data)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Mining request rejected successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -516,9 +587,10 @@ def create_appointment():
         physical_meeting_location = data.get('physical_meeting_location')
         start_date = data.get('start_date')
         description = data.get('description')
+        mining_request_id = data.get("mining_request_id")
 
         # Validate required fields
-        if not all([assigned_to_id, physical_meeting_location, start_date, description]):
+        if not all([assigned_to_id, physical_meeting_location, start_date, description, mining_request_id]):
             return jsonify({"error": "Missing required parameters"}), 400
 
         result, error = GsmbOfficerService.create_appointment(
@@ -526,7 +598,8 @@ def create_appointment():
             assigned_to_id, 
             physical_meeting_location, 
             start_date, 
-            description
+            description,
+            mining_request_id
         )
 
         if error:

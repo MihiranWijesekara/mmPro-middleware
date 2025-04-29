@@ -297,9 +297,11 @@ class GsmbOfficerService:
                     "capacity": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Capacity"),
                     "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
-                    "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
                     "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
                     "license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+                    "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+                    "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
+
                     
                     # Fetching File URLs from Attachments API
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
@@ -329,7 +331,7 @@ class GsmbOfficerService:
             if not REDMINE_URL:
                 return None, "Environment variable 'REDMINE_URL' is not set"
 
-            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1"
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=!7"
             response = requests.get(
                 ml_issues_url,
                 headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
@@ -384,6 +386,7 @@ class GsmbOfficerService:
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
+
                 }
 
                 # Remove keys with None values
@@ -427,6 +430,7 @@ class GsmbOfficerService:
                 # Extract Lorry Number and Mobile Number from custom fields
                 lorry_number = None
                 mobile_number = None
+                role = None
 
                 for field in custom_fields:
                     if field.get("name") == "Lorry Number":
@@ -435,6 +439,8 @@ class GsmbOfficerService:
                         mobile_number = field.get("value")
                     elif field.get("name") == "Role":
                         role = field.get("value")
+
+
 
                 # 🛠️ Format complaint_date
                 created_on = issue.get("created_on")
@@ -594,6 +600,7 @@ class GsmbOfficerService:
                         {"id": 92, "value": data.get("google_location")},
                         {"id": 101, "value": data.get("mining_license_number")},
                         {"id": 99, "value": data.get("month_capacity")},
+                        {"id": 66, "value": data.get("mobile_number")},
                     ]
             # Attachments (file tokens if present)
             file_field_ids = {
@@ -674,6 +681,106 @@ class GsmbOfficerService:
 
         except Exception as e:
             return False, str(e)
+        
+
+    @staticmethod
+    def upload_payment_receipt(token, data):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            mining_request_id = data.get("mining_request_id")
+            comments = data.get("comments")
+            payment_receipt_file_id = data.get("payment_receipt_id")
+
+            if not mining_request_id or not comments or not payment_receipt_file_id:
+                return False, "Missing required fields (mining_request_id, comments, or payment_receipt)"
+
+            update_payload = {
+                "issue": {
+                    "status_id": 26,# set status to awaiting me scheduling
+                    "custom_fields": [
+                        {
+                            "id": 80,  # Payment Receipt field
+                            "value": payment_receipt_file_id
+                        },
+                        {
+                            "id": 103,  # Comments field
+                            "value": comments
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                "X-Redmine-API-Key": user_api_key,
+                "Content-Type": "application/json"
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if response.status_code in (200, 204):
+                return True, None
+            else:
+                return False, f"Failed to update mining request: {response.status_code} - {response.text}"
+
+        except Exception as e:
+            return False, str(e)
+        
+    @staticmethod
+    def reject_mining_request(token, data):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            REDMINE_URL = os.getenv("REDMINE_URL")
+
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            mining_request_id = data.get("mining_request_id")
+            comments = data.get("comments")
+
+            if not mining_request_id or not comments:
+                return False, "Missing required fields (mining_request_id or comments)"
+
+            update_payload = {
+                "issue": {
+                    "status_id": 6,  # Rejected
+                    "custom_fields": [
+                        {
+                            "id": 103,  # Comments field
+                            "value": comments
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                "X-Redmine-API-Key": user_api_key,
+                "Content-Type": "application/json"
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if response.status_code in (200, 204):
+                return True, None
+            else:
+                return False, f"Failed to reject mining request: {response.status_code} - {response.text}"
+
+        except Exception as e:
+            return False, str(e)
+
+
 
     @staticmethod    
     def get_mlownersDetails(token):
@@ -791,7 +898,7 @@ class GsmbOfficerService:
 
  
     @staticmethod
-    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description):
+    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description,mining_request_id):
         try:
             user_api_key = JWTUtils.get_api_key_from_token(token)
             author_id = JWTUtils.decode_jwt_and_get_user_id(token)
@@ -807,7 +914,7 @@ class GsmbOfficerService:
                 "issue": {
                     "project_id": 1,
                     "tracker_id": 11,  # Appointment tracker
-                    "status_id": 34,    # Default to 'New' or use your desired status ID
+                    "status_id": 38,    # Default to 'New' or use your desired status ID
                     "assigned_to_id": int(assigned_to_id),
                     "author_id": author_id,
                     "subject": "Appointment",
@@ -835,6 +942,26 @@ class GsmbOfficerService:
                 return None, f"Failed to create appointment: {response.status_code} - {response.text}"
 
             issue_id = response.json().get("issue", {}).get("id")
+
+            # Step 2: Update the existing mining request issue to status_id = 34
+            update_payload = {
+                "issue": {
+                    "status_id": 34  # the set appointment scheduled
+                }
+            }
+
+            update_response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(update_payload)
+            )
+
+            if update_response.status_code not in (200, 204):
+                return None, f"Failed to update mining request: {update_response.status_code} - {update_response.text}"
+
             return issue_id, None
 
         except Exception as e:

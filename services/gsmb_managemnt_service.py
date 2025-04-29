@@ -86,6 +86,11 @@ class GsmbManagmentService:
 
     @staticmethod
     def fetch_top_mining_holders(token):
+        def safe_float(value):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return 0
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             api_key = JWTUtils.get_api_key_from_token(token)
@@ -141,12 +146,22 @@ class GsmbManagmentService:
                         (field.get("value") for field in custom_fields if field.get("name") == "Used"), None
                     )
 
-                    capacity = float(capacity_str) if capacity_str and capacity_str.strip() != "" else 0
-                    used = float(used_str) if used_str and used_str.strip() != "" else 0
+                    # capacity = float(capacity_str) if capacity_str and capacity_str.strip() != "" else 0
+                    # used = float(used_str) if used_str and used_str.strip() != "" else 0
+
+                    # if owner and capacity > 0:
+                    #     percentage_used = ((used / capacity) * 100) if capacity else 0
+                    #     mining_data.append({"label": owner, "value": round(percentage_used, 2), "capacity": capacity})
+                    capacity = safe_float(capacity_str)
+                    used = safe_float(used_str)
 
                     if owner and capacity > 0:
-                        percentage_used = ((used / capacity) * 100) if capacity else 0
-                        mining_data.append({"label": owner, "value": round(percentage_used, 2), "capacity": capacity})
+                        percentage_used = ((used / capacity) * 100)
+                        mining_data.append({
+                            "label": owner,
+                            "value": round(percentage_used, 2),
+                            "capacity": capacity
+                        })
 
                 offset += len(issues)
 
@@ -767,8 +782,8 @@ class GsmbManagmentService:
             headers=headers
             )
 
-            if response.status_code == 201:
-                return response.json(), None
+            if response.status_code == 204:
+               return {"status": "success", "message": "User activated successfully"}, None
             else:
                 error_msg = f"Failed to User Active. Status: {response.status_code}"
                 try:
