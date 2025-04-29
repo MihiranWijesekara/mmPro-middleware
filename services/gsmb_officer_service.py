@@ -679,6 +679,106 @@ class GsmbOfficerService:
 
         except Exception as e:
             return False, str(e)
+        
+
+    @staticmethod
+    def upload_payment_receipt(token, data):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            mining_request_id = data.get("mining_request_id")
+            comments = data.get("comments")
+            payment_receipt_file_id = data.get("payment_receipt_id")
+
+            if not mining_request_id or not comments or not payment_receipt_file_id:
+                return False, "Missing required fields (mining_request_id, comments, or payment_receipt)"
+
+            update_payload = {
+                "issue": {
+                    "status_id": 26,# set status to awaiting me scheduling
+                    "custom_fields": [
+                        {
+                            "id": 80,  # Payment Receipt field
+                            "value": payment_receipt_file_id
+                        },
+                        {
+                            "id": 103,  # Comments field
+                            "value": comments
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                "X-Redmine-API-Key": user_api_key,
+                "Content-Type": "application/json"
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if response.status_code in (200, 204):
+                return True, None
+            else:
+                return False, f"Failed to update mining request: {response.status_code} - {response.text}"
+
+        except Exception as e:
+            return False, str(e)
+        
+    @staticmethod
+    def reject_mining_request(token, data):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            REDMINE_URL = os.getenv("REDMINE_URL")
+
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            mining_request_id = data.get("mining_request_id")
+            comments = data.get("comments")
+
+            if not mining_request_id or not comments:
+                return False, "Missing required fields (mining_request_id or comments)"
+
+            update_payload = {
+                "issue": {
+                    "status_id": 6,  # Rejected
+                    "custom_fields": [
+                        {
+                            "id": 103,  # Comments field
+                            "value": comments
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                "X-Redmine-API-Key": user_api_key,
+                "Content-Type": "application/json"
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if response.status_code in (200, 204):
+                return True, None
+            else:
+                return False, f"Failed to reject mining request: {response.status_code} - {response.text}"
+
+        except Exception as e:
+            return False, str(e)
+
+
 
     @staticmethod    
     def get_mlownersDetails(token):
