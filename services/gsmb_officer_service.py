@@ -922,7 +922,12 @@ class GsmbOfficerService:
                         {
                             "id": 102,  # Replace with actual ID for "Mining License Number"
                             "value": physical_meeting_location,
+                        },
+                        {
+                            "id": 101,  # Custom field ID
+                            "value": f"ML Request LLL/100/{mining_request_id}",  # Dynamic value
                         }
+                    
                     ]
                 }
             }
