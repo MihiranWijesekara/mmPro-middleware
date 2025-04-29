@@ -796,7 +796,7 @@ class GsmbOfficerService:
 
  
     @staticmethod
-    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description):
+    def create_appointment(token, assigned_to_id, physical_meeting_location, start_date, description,mining_request_id):
         try:
             user_api_key = JWTUtils.get_api_key_from_token(token)
             author_id = JWTUtils.decode_jwt_and_get_user_id(token)
@@ -812,7 +812,7 @@ class GsmbOfficerService:
                 "issue": {
                     "project_id": 1,
                     "tracker_id": 11,  # Appointment tracker
-                    "status_id": 34,    # Default to 'New' or use your desired status ID
+                    "status_id": 38,    # Default to 'New' or use your desired status ID
                     "assigned_to_id": int(assigned_to_id),
                     "author_id": author_id,
                     "subject": "Appointment",
@@ -840,6 +840,26 @@ class GsmbOfficerService:
                 return None, f"Failed to create appointment: {response.status_code} - {response.text}"
 
             issue_id = response.json().get("issue", {}).get("id")
+
+            # Step 2: Update the existing mining request issue to status_id = 34
+            update_payload = {
+                "issue": {
+                    "status_id": 34  # the set appointment scheduled
+                }
+            }
+
+            update_response = requests.put(
+                f"{REDMINE_URL}/issues/{mining_request_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(update_payload)
+            )
+
+            if update_response.status_code not in (200, 204):
+                return None, f"Failed to update mining request: {update_response.status_code} - {update_response.text}"
+
             return issue_id, None
 
         except Exception as e:
