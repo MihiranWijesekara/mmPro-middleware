@@ -129,6 +129,7 @@ class MiningEnginerService:
                     "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),  # ID for "Detailed Mine Restoration Plan"
                     "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),  # ID for "Payment Receipt"
                     "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),  # ID for "Deed and Survey Plan"
+                    "mining_number": attachment_urls.get("Mining License Number") or custom_fields.get(101),
                 })
 
             return processed_issues, None
