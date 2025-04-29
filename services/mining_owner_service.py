@@ -128,6 +128,8 @@ class MLOwnerService:
             user_id, error = MLOUtils.get_user_info_from_token(token)
             if not user_id:
                 return None, error
+            
+            print("user_id", user_id)
 
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
@@ -183,7 +185,11 @@ class MLOwnerService:
                 location = custom_fields_dict.get("Name of village ", "N/A")
                 start_date = issue.get("start_date", "N/A")
                 due_date = issue.get("due_date", "N/A")
-                remaining_cubes = int(custom_fields_dict.get("Remaining", 0))
+                remaining_str = custom_fields_dict.get("Remaining", "0")
+                try:
+                    remaining_cubes = int(remaining_str) if remaining_str.strip() else 0
+                except ValueError:
+                    remaining_cubes = 0
                 royalty = custom_fields_dict.get("Royalty", "N/A")
                 
 
