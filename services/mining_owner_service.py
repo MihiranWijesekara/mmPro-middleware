@@ -595,8 +595,9 @@ class MLOwnerService:
 
             # --- Configuration ---
             REDMINE_URL = os.getenv("REDMINE_URL")
-            # Assuming JWTUtils has a method like this
-            API_KEY = JWTUtils.get_api_key_from_token(token) 
+
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+
 
             if not REDMINE_URL or not API_KEY:
                 print("Error: Missing REDMINE_URL or API_KEY environment variables or token invalid.") # More specific logging
@@ -609,12 +610,10 @@ class MLOwnerService:
                 print(f"Authentication error: {error}") # Log error
                 return None, f"Authentication error: {error}"
 
-            # --- Redmine API Call ---
+            # Get all TPL issues (tracker_id=5) without filtering by custom field in params
             params = {
-                "project_id": 1,          # Matches sample data
-                "tracker_id": 5,          # Matches sample data (TPL)
-                "cf_59": mining_license_number # Filter by custom field ID 59
-                # "status_id": "*" # Optionally add status_id=* to get issues of any status
+                "project_id": 1,
+                "tracker_id": 5,
             }
 
             headers = {
@@ -658,96 +657,77 @@ class MLOwnerService:
 
             for issue in issues:
                 try:
-                    # --- Extract Custom Fields (More Robustly) ---
-                    custom_fields_raw = issue.get("custom_fields", [])
-                    custom_fields = {
-                        field["name"]: field.get("value") # Use .get("value") for safety
-                        for field in custom_fields_raw if "name" in field # Ensure field has a name
-                    }
+                    # Get all custom fields for this issue
+                    custom_fields = issue.get("custom_fields", [])
+                    
+                    # Find the Mining issue id (custom field 59)
+                    mining_issue_id = None
+                    for field in custom_fields:
+                        if field.get("id") == 59:
+                            mining_issue_id = field.get("value")
+                            break
+                    
+                    # Skip if this TPL doesn't belong to our mining license
+                    if not mining_issue_id or mining_issue_id != mining_license_number.strip():
+                        continue
 
-                    # --------------------------------------------------------------
-                    # REMOVED THE REDUNDANT CHECK HERE:
-                    # if custom_fields.get("Mining License Number") != mining_license_number:
-                    #    continue
-                    # The API filter cf_59=... should handle this already.
-                    # If you still face issues, double-check cf_59 is the correct ID
-                    # for "Mining issue id" in your Redmine instance.
-                    # --------------------------------------------------------------
+                    # Convert custom fields to dictionary for easier access
+                    custom_fields_dict = {
+                        field["name"]: field["value"] 
+                        for field in custom_fields
+                    }
 
                     # --- Calculate Status ---
                     created_date_str = issue.get("created_on")
-                    estimated_hours_str = issue.get("estimated_hours") # Keep as string initially
-                    status = "Undetermined" # Default status
+                    estimated_hours_str = issue.get("estimated_hours")  # Keep as string initially
+                    status = "Undetermined"  # Default status
 
-                    if created_date_str and estimated_hours_str is not None: # Check estimated_hours is not None
+                    if created_date_str and estimated_hours_str is not None:
                         try:
                             created_date = datetime.strptime(created_date_str, "%Y-%m-%dT%H:%M:%SZ")
-                            # Make created_date timezone-aware (UTC)
-                            # created_date = created_date.replace(tzinfo=timezone.utc) 
-                            # If comparing with datetime.now(), make sure both are aware or naive
-
-                            estimated_hours = float(estimated_hours_str) # Convert to float safely here
+                            estimated_hours = float(estimated_hours_str)
                             
-                            # Calculate expiration datetime
                             expiration_datetime = created_date + timedelta(hours=estimated_hours)
-
-                            # Compare (ensure timezones match if necessary)
-                            # For simplicity, assuming naive UTC or local time comparison here
-                            if current_datetime < expiration_datetime:
-                                status = "Active"
-                            else:
-                                status = "Expired"
+                            status = "Active" if current_datetime < expiration_datetime else "Expired"
 
                         except ValueError as e:
-                            print(f"Error parsing date/hours for issue {issue.get('id')}: {str(e)}. Date: '{created_date_str}', Hours: '{estimated_hours_str}'")
-                            status = "Error Parsing Data" # More specific status
-                        except TypeError as e:
-                            print(f"Type error during status calculation for issue {issue.get('id')}: {str(e)}. Hours: '{estimated_hours_str}'")
-                            status = "Error Calculating Status"
+                            print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
+                            continue  # Skip to next issue on error
 
-                    # --- Prepare Output Data ---
                     tpl_data = {
                         "tpl_id": issue.get("id"),
-                        # Use the value directly from cf_59 if needed, or assume it matches input
-                        "license_number": mining_license_number, 
-                        # Or fetch from custom_fields if absolutely necessary:
-                        # "license_number": custom_fields.get("Mining issue id"), 
+                        "license_number": mining_license_number,
                         "subject": issue.get("subject", ""),
                         "status": status,
-                        "lorry_number": custom_fields.get("Lorry Number"),
-                        "driver_contact": custom_fields.get("Driver Contact"),
-                        "destination": custom_fields.get("Destination"),
-                        "Route_01": custom_fields.get("Route 01"),
-                        "Route_02": custom_fields.get("Route 02"),
-                        "Route_03": custom_fields.get("Route 03"),
-                        "cubes": custom_fields.get("Cubes"),
-                        "Create_Date": created_date_str, # Keep original string format
-                        "Estimated Hours": estimated_hours_str, # Keep original value
+                        "lorry_number": custom_fields_dict.get("Lorry Number"),
+                        "driver_contact": custom_fields_dict.get("Driver Contact"),
+                        "destination": custom_fields_dict.get("Destination"),
+                        "Route_01": custom_fields_dict.get("Route 01"),
+                        "Route_02": custom_fields_dict.get("Route 02"),
+                        "Route_03": custom_fields_dict.get("Route 03"),
+                        "cubes": custom_fields_dict.get("Cubes"),  
+                        "Create_Date": issue.get("created_on", ""),
+                        "Estimated Hours": estimated_hours_str,
                     }
 
                     tpl_list.append(tpl_data)
 
                 except Exception as e:
-                    # Log errors processing individual issues but continue with others
                     print(f"Error processing issue {issue.get('id', 'N/A')}: {str(e)}")
-                    # Optionally: add a placeholder or skip the issue
                     continue
 
-            print(f"Finished processing. Returning {len(tpl_list)} TPLs.") # Debugging
+            print(f"Finished processing. Returning {len(tpl_list)} TPLs.")  # Debugging
             return tpl_list, None
+
 
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error connecting to Redmine: {str(e)}"
             print(error_msg)
             return None, error_msg
         except Exception as e:
-            # Catch unexpected errors during setup or final return
-            error_msg = f"Unexpected error in view_tpls: {str(e)}"
-            import traceback
-            print(error_msg)
-            traceback.print_exc() # Print stack trace for debugging
-            # Avoid returning the raw exception string to the client for security
-            return None, "An unexpected processing error occurred."   
+            print(f"Unexpected error: {str(e)}")
+            return None, f"Processing error: {str(e)}"
+    
 
 
     @staticmethod
@@ -803,8 +783,34 @@ class MLOwnerService:
                 return None, f"Failed to create issue: {response.text}"
         
             issue_id = response.json()["issue"]["id"]
+            issue_id = response.json()["issue"]["id"]
+        
+        # Now, update the Mining License Number field with LLL/100/{issue_id}
+            update_payload = {
+                "issue": {
+                    "custom_fields": [
+                        {
+                            "id": 101,  # Mining License Number field ID
+                            "value": f"ML Request LLL/100/{issue_id}"
+                        }
+                    ]
+                }
+            }
+
+            update_response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers=headers,
+                json=update_payload
+            )
+
+            if update_response.status_code != 204:
+                return None, f"Failed to update Mining License Number: {update_response.status_code} - {update_response.text}"
+
+            # Return the complete issue data including the updated mining license number
+            issue_data = response.json()
+            issue_data["issue"]["mining_license_number"] = f"LLL/100/{issue_id}"
             
-            return response.json(), None
+            return issue_data, None
 
         except requests.exceptions.RequestException as e:
             return None, f"Request failed: {str(e)}"
