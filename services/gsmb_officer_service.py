@@ -973,6 +973,62 @@ class GsmbOfficerService:
             return None, f"Server error: {str(e)}"
         
     @staticmethod
+    def approve_mining_license(token, issue_id, new_status_id):
+        """
+        Approves a mining license and updates:
+        - Status
+        - Subject (with approver info)
+        - Mining License Number format
+        """
+        try:
+            # 1. Authentication and setup
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return {'success': False, 'message': "Invalid API key"}
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return {'success': False, 'message': "Redmine URL not configured"}
+
+
+            # 3. Prepare updated fields
+            update_payload = {
+                "issue": {
+                    "status_id": new_status_id,
+                    "subject": "Approved by (GSMB)",
+                    "custom_fields": [
+                        {
+                            "id": 101,
+                            "name": "Mining License Number",
+                            "value": f"LLL/100/{issue_id}"  # Standardized format
+                        }
+                    ]
+                }
+            }
+
+            # 4. Send update
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                json=update_payload,
+            )
+
+
+            if response.status_code != 204:
+            
+                return {'success': False, 'message': f"Update failed: {response.status_code} - {response.text[:200]}"}
+
+            return {'success': True, 'message': "License approved and updated successfully"}
+
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'message': f"Network error: {str(e)}"}
+        except Exception as e:
+            return {'success': False, 'message': f"Unexpected error: {str(e)}"}
+        
+    @staticmethod
     def change_issue_status(token, issue_id, new_status_id):
         try:
             user_api_key = JWTUtils.get_api_key_from_token(token)

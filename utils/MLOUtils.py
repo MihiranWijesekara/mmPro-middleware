@@ -37,8 +37,7 @@ class MLOUtils:
 
         # Loop through issues and filter based on assigned_to ID
         assigned_to_id = str(issue.get('assigned_to', {}).get('id'))  # Ensure assigned_to_id is a string
-        print(f"Checking Issue {issue.get('id')} - Assigned to ID: {assigned_to_id}, User ID: {user_id}")  # Debugging: Print IDs
-
+       
         if assigned_to_id == user_id:  # Compare with user_id from token
             return True
         
