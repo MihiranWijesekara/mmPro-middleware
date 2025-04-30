@@ -312,20 +312,77 @@ def register_gsmb_officer():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@auth_bp.route('/register-mining-engineer', methods=['POST'])
+def register_mining_engineer():
+    
+    try:
+        login = request.form.get('login')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        designation = request.form.get('designation')
+        nic_number = request.form.get('nic_number')
+        mobile_number = request.form.get('mobile_number')
+        user_Type = request.form.get('user_Type')
+
+        if not all([login, first_name, last_name, email, password, nic_number, mobile_number, designation]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        nic_front_file = request.files.get('nic_front') 
+        nic_back_file = request.files.get('nic_back')
+        work_id_file = request.files.get('work_id')
+
+
+        nic_front_id = AuthService.upload_file_to_redmine(nic_front_file) if nic_front_file else None
+        nic_back_id = AuthService.upload_file_to_redmine(nic_back_file) if nic_back_file else None
+        work_id_file_id = AuthService.upload_file_to_redmine(work_id_file) if work_id_file else None
+
+        custom_fields = [
+            {"id": 41, "value": nic_number},
+            {"id": 65, "value": mobile_number},
+            {"id": 86, "value": designation},
+            {"id": 89, "value": user_Type},
+        ]
+
+        if nic_front_id:
+            custom_fields.append({"id": 83, "value": nic_front_id})
+        if nic_back_id:
+            custom_fields.append({"id": 84, "value": nic_back_id})
+        if work_id_file_id:
+            custom_fields.append({"id": 85, "value": work_id_file_id})
+
+        # Register the GSMB Officer in Redmine
+        result, error = AuthService.register_mining_engineer(
+            login, first_name, last_name, email, password, custom_fields
+        )
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        # Assign the "GSMB Officer" role in the GSMB project
+        user_id = result.get('user', {}).get('id')
+        if user_id:
+            role_name = "miningEngineer"
+            role_result, role_error = AuthService.assign_role(user_id, role_name)
+            if role_error:
+                return jsonify({"error": role_error}), 500
+
+        return jsonify({"success": True, "role": "GSMB Officer", "status": "inactive", "data": result}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @auth_bp.route('/register-mlowners/individual', methods=['POST'])
 def register_individual_mlowner():
     try:
-        token = request.headers.get('Authorization')
         data = request.get_json()
-
-        if not token:
-            return jsonify({"error": "Authorization token is missing"}), 400
 
         # Validate required fields
         required_fields = [
             'login', 'first_name', 'last_name', 'email', 'password',
-            'national_identity_card', 'address', 'nationality', 'mobile_number'
+            'national_identity_card', 'mobile_number'
+            # 'address', 'nationality', 
         ]
         
         missing_fields = [field for field in required_fields if field not in data]
@@ -335,12 +392,13 @@ def register_individual_mlowner():
         # Prepare custom fields for individual
         custom_fields = [
             {"id": 41, "value": data['national_identity_card']},  # National Identity Card
-            {"id": 42, "value": data.get('address', '')},  # Address
-            {"id": 43, "value": data.get('nationality', '')},  # Nationality
-            {"id": 44, "value": data.get('mobile_number', '')},  # Mobile Number
-            {"id": 45, "value": data.get('employment_name_of_employer', '')},  # Employment, Name of employer
-            {"id": 46, "value": data.get('place_of_business', '')},  # Place of Business
-            {"id": 48, "value": data.get('residence', '')}  # Residence
+            # {"id": 42, "value": data.get('address', '')},  # Address
+            # {"id": 43, "value": data.get('nationality', '')},  # Nationality
+            {"id": 65, "value": data.get('mobile_number', '')},  # Mobile Number
+            # {"id": 45, "value": data.get('employment_name_of_employer', '')},  # Employment, Name of employer
+            # {"id": 46, "value": data.get('place_of_business', '')},  # Place of Business
+            # {"id": 48, "value": data.get('residence', '')}  # Residence
+            {"id": 89, "value": 'mlOwner'},
         ]
 
         # Call service to create user
@@ -356,7 +414,19 @@ def register_individual_mlowner():
         if error:
             return jsonify({"error": error}), 500
 
-        return jsonify({"success": True, "data": result}), 201
+        user_id = result.get('user', {}).get('id')
+        if user_id:
+            role_name = "MLOwner"
+            role_result, role_error = AuthService.assign_role(user_id, role_name)
+            if role_error:
+                return jsonify({"error": role_error}), 500
+
+        return jsonify({
+            "success": True,
+            "role": "mlOwner",
+            "status": "inactive",
+            "data": result
+        }), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -359,6 +359,13 @@ class AuthService:
         return AuthService._register_officer("GSMB Officer", login, first_name, last_name, email, password, custom_fields)
 
     @staticmethod
+    def register_mining_engineer(login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers a GSMB Officer in Redmine with status = inactive.
+        """
+        return AuthService._register_officer("Mining Engineer", login, first_name, last_name, email, password, custom_fields)
+    
+    @staticmethod
     def _register_officer(role, login, first_name, last_name, email, password, custom_fields):
         """
         Registers an officer in Redmine with status = inactive.
@@ -423,8 +430,10 @@ class AuthService:
             # The role ID corresponding to the "PoliceOfficer" role in your project
             role_ids = {
                 "PoliceOfficer": 7, 
-                "GSMBOfficer":6 # Role ID for "PoliceOfficer" as per your Redmine API response
+                "GSMBOfficer":6 ,# Role ID for "PoliceOfficer" as per your Redmine API response
                 # Add more roles and their IDs here as needed
+                "MLOwner":8,
+                "miningEngineer":10
             }
 
             # Get the correct role ID
@@ -467,6 +476,7 @@ class AuthService:
                 "firstname": first_name,
                 "lastname": last_name,
                 "mail": email,
+                "status": 3, 
                 "password": password,
                 "custom_fields": custom_fields
             }
