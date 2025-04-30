@@ -162,10 +162,10 @@ def create_ml_appointment():
 #     except Exception as e:
 #         return {"error": f"Unexpected error: {str(e)}"}, 500
 
-@mining_enginer_bp.route('/miningEngineer-approve/<int:issue_id>', methods=['PUT'])
+@mining_enginer_bp.route('/miningEngineer-approve/<int:me_appointment_issue_id>', methods=['PUT'])
 @check_token
 @role_required(['miningEngineer'])
-def miningEngineer_approve(issue_id):                               
+def miningEngineer_approve(me_appointment_issue_id):                               
     try:
         # Extract token from headers
         auth_header = request.headers.get("Authorization")
@@ -178,7 +178,15 @@ def miningEngineer_approve(issue_id):
         
         me_report_file = request.files.get('me_report') 
 
+        ml_number_full = request.form.get("ml_number")  # e.g., "ML Request LLL/100/206"
+        if not ml_number_full:
+            return {"error": "ML number is required"}, 400
 
+        # Extract numeric part (e.g., 206)
+        try:
+            ml_request_id = ml_number_full.strip().split("/")[-1]
+        except Exception:
+            return {"error": "Invalid ML number format"}, 400
         # Upload the file to Redmine and get the file ID
         me_report_file_id = AuthService.upload_file_to_redmine(me_report_file) if me_report_file else None
 
@@ -198,7 +206,8 @@ def miningEngineer_approve(issue_id):
         # Call service to update the appointment
         result, error = MiningEnginerService.miningEngineer_approve(
             token=token,
-            issue_id=issue_id,
+            me_appointment_id = me_appointment_issue_id,
+            ml_id=ml_request_id,
             update_data=update_data,
             attachments={"me_report": me_report_file} if me_report_file else None
         )

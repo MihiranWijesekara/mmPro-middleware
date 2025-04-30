@@ -174,7 +174,7 @@ class MiningEnginerService:
             return {}
         
     @staticmethod
-    def miningEngineer_approve(token, issue_id, update_data, attachments=None):   
+    def miningEngineer_approve(token, ml_id, me_appointment_id, update_data, attachments=None):   
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
@@ -182,59 +182,74 @@ class MiningEnginerService:
             if not REDMINE_URL or not API_KEY:
                 return None, "Redmine URL or API Key is missing"
             
+            headers = {
+                "Content-Type": "application/json",
+                "X-Redmine-API-Key": API_KEY
+            }
+
+            # Step 1: Update ML Issue
             payload = {
                 "issue": {
                     "status_id": update_data.get("status_id", 32),    
-                    "start_date": update_data.get("start_date", ""),  # Optional start date
-                    "due_date": update_data.get("due_date", ""),  # Optional due date
+                    "start_date": update_data.get("start_date", ""),  # Optional
+                    "due_date": update_data.get("due_date", ""),      # Optional
                     "custom_fields": [
                         {
-                            "id": 34,  
+                            "id": 34,  # Capacity
                             "value": update_data.get("Capacity", "")
                         },
                         {
-                            "id": 99,  
+                            "id": 99,  # Month capacity
                             "value": update_data.get("month_capacity", "")
                         },
                         {
-                            "id": 96,  
+                            "id": 96,  # ME Comment
                             "value": update_data.get("me_comment", "")
                         },
                         {
-                            "id": 94,  
+                            "id": 94,  # ME Report
                             "value": update_data.get("me_report")
                         }
                     ]              
                 }
             }
 
-            headers = {
-                "Content-Type": "application/json",
-                "X-Redmine-API-Key": API_KEY
-            }
-
-            # First, update the issue with basic data
             response = requests.put(
-                f"{REDMINE_URL}/issues/{issue_id}.json",
+                f"{REDMINE_URL}/issues/{ml_id}.json",
                 json=payload,
                 headers=headers
             )
-     
-            if response.status_code in (200, 204):
-                try:
-                    # Only parse JSON if response has content
-                    return (response.json(), None) if response.content else ({"status": "success"}, None)
-                    
-                except ValueError:
-                    return {"status": "success"}, None
-            else:
+
+            if response.status_code not in (200, 204):
                 return None, f"Redmine API error: {response.status_code} - {response.text}"
-            
+
+            # Step 2: Close ME Appointment Issue
+            me_payload = {
+                "issue": {
+                    "status_id": 5  # Assuming 5 means 'closed'
+                }
+            }
+
+            me_response = requests.put(
+                f"{REDMINE_URL}/issues/{me_appointment_id}.json",
+                json=me_payload,
+                headers=headers
+            )
+
+            if me_response.status_code not in (200, 204):
+                return None, f"Failed to close ME Appointment: {me_response.status_code} - {me_response.text}"
+
+            # Final response
+            try:
+                return (response.json(), None) if response.content else ({"status": "success"}, None)
+            except ValueError:
+                return {"status": "success"}, None
+
         except requests.exceptions.RequestException as e:
             return None, f"Request failed: {str(e)}"
         except Exception as e:
             return None, f"Unexpected error: {str(e)}"
-        
+
 
     @staticmethod
     def miningEngineer_reject(token, issue_id, update_data):   
