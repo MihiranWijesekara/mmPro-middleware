@@ -627,9 +627,83 @@ class MiningEnginerService:
                     "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),  # ID for "Detailed Mine Restoration Plan"
                     "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),  # ID for "Payment Receipt"
                     "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),  # ID for "Deed and Survey Plan"
+                    "mining_license_number": custom_fields.get(101),  # ID for "Grama Niladhari Division"
                 })
 
             return processed_issues, None
 
         except Exception as e:
-            return None, f"Server error: {str(e)}"    
+            return None, f"Server error: {str(e)}"
+
+
+    @staticmethod
+    def get_me_approve_single_license(token, issue_id):  
+        try:
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            API_KEY = JWTUtils.get_api_key_from_token(token)
+
+            if not REDMINE_URL or not API_KEY:
+                return {"error": "Redmine URL or API Key is missing"}
+
+        
+            user_id, error = MLOUtils.get_user_info_from_token(token)
+            if not user_id:
+                return {"error": error}
+
+            headers = {
+                "X-Redmine-API-Key": API_KEY
+            }
+
+
+            response = requests.get(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers=headers
+            )
+
+
+            if response.status_code != 200:
+                error_msg = f"Redmine API error: {response.status_code}"
+                if response.text:
+                    error_msg += f" - {response.text[:200]}"  # Truncate long error messages
+                return {"error": error_msg}
+
+            data = response.json()
+            issue = data.get("issue", {})
+
+       
+            if issue.get("tracker", {}).get("id") != 4 or issue.get("project", {}).get("id") != 1:
+                return {"error": "Issue not found or not a valid mining license"}
+
+        
+            custom_fields = {field['id']: field['value']
+                            for field in issue.get('custom_fields', [])
+                            if field.get('value') and str(field.get('value')).strip()}
+
+            attachment_urls = MiningEnginerService.get_attachment_urls(API_KEY, REDMINE_URL, issue.get("custom_fields", []))
+
+            processed_issue = {
+                "id": issue.get("id"),
+                "subject": issue.get("subject"),
+                "status": issue.get("status", {}).get("name"),
+                "assigned_to": issue.get("assigned_to", {}).get("name"),
+                "exploration_license_no": custom_fields.get(19),
+                "Land_Name": custom_fields.get(28),
+                "Land_owner_name": custom_fields.get(29),
+                "Name_of_village": custom_fields.get(30),
+                "Grama_Niladhari": custom_fields.get(31),
+                "Divisional_Secretary_Division": custom_fields.get(32),
+                "administrative_district": custom_fields.get(33),
+                "Capacity": custom_fields.get(34),
+                "Mobile_Numbe": custom_fields.get(66),
+                "Google_location": custom_fields.get(92),
+                "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),
+                "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),
+                "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),
+                "mining_license_number": custom_fields.get(101),
+            }
+
+            return processed_issue
+
+        except Exception as e:
+            return {"error": f"Server error: {str(e)}"}         
+        

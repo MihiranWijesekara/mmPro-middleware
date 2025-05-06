@@ -319,5 +319,27 @@ def get_me_approve_license():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
 
+@mining_enginer_bp.route('/me-approve-single-license/<int:issue_id>', methods=['GET'])
+@check_token
+@role_required(['miningEngineer'])
+def get_me_approve_single_license(issue_id):
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split()[1] if auth_header and ' ' in auth_header else auth_header
+        
+        if not token:
+            return jsonify({"error": "Authorization header missing"}), 401
+
+        result = MiningEnginerService.get_me_approve_single_license(token,issue_id=issue_id,)
+        
+        if "error" in result:
+            status_code = 500 if "Server error" in result["error"] else 400
+            return jsonify({"error": result["error"]}), status_code
+            
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
 
