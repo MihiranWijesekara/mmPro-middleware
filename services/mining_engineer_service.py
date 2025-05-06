@@ -252,7 +252,7 @@ class MiningEnginerService:
 
 
     @staticmethod
-    def miningEngineer_reject(token, issue_id, update_data):   
+    def miningEngineer_reject(token, ml_id, me_appointment_id, update_data):   
         try:
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
@@ -283,19 +283,35 @@ class MiningEnginerService:
             }
 
             # Send update to Redmine
-            response = requests.put(
-                f"{REDMINE_URL}/issues/{issue_id}.json",
+            ml_response = requests.put(
+                f"{REDMINE_URL}/issues/{ml_id}.json",
                 json=payload,
                 headers=headers
             )
+            
+            if ml_response.status_code not in (200, 204):
+                return None, f"Redmine API error (ML ID : {ml_id}):{ml_response.text}"
+            
+            me_payload = {
+                "issue": {
+                    "status_id": 5  # Assuming 5 means 'closed'
+                }
+            }
 
-            if response.status_code in (200, 204):
-                try:
-                    return (response.json(), None) if response.content else ({"status": "success"}, None)
-                except ValueError:
-                    return {"status": "success"}, None
-            else:
-                return None, f"Redmine API error: {response.status_code} - {response.text}"
+            me_response = requests.put(
+                f"{REDMINE_URL}/issues/{me_appointment_id}.json",
+                json=me_payload,
+                headers=headers
+            )
+
+            if me_response.status_code not in (200, 204):
+                return None, f"Failed to close ME Appointment: {me_response.status_code} - {me_response.text}"
+
+            # Final response
+            try:
+                return (ml_response.json(), None) if ml_response.content else ({"status": "success"}, None)
+            except ValueError:
+                return {"status": "success"}, None
             
         except requests.exceptions.RequestException as e:
             return None, f"Request failed: {str(e)}"
