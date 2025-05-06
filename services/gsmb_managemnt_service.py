@@ -540,7 +540,7 @@ class GsmbManagmentService:
                 "licenceOwner": 0,
                 "activeGSMBOfficers": 0,
                 "policeOfficers": 0,
-                "public": 0
+                "miningEngineer": 0
             }
 
             offset = 0
@@ -570,8 +570,8 @@ class GsmbManagmentService:
                             counts["activeGSMBOfficers"] += 1
                         elif role_name == "PoliceOfficer":
                             counts["policeOfficers"] += 1
-                        elif role_name == "Public":
-                            counts["public"] += 1
+                        elif role_name == "miningEngineer":
+                            counts["miningEngineer"] += 1
 
                 offset += len(memberships)
 
@@ -579,7 +579,7 @@ class GsmbManagmentService:
                     counts["licenceOwner"]
                     + counts["activeGSMBOfficers"]
                     + counts["policeOfficers"]
-                    + counts["public"]
+                    + counts["miningEngineer"]
                 )
                 counts["total_count"] = total_count
 
