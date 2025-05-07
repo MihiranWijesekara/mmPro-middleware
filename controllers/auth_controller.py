@@ -44,7 +44,7 @@ def login():
     user_data, user_role, api_key = AuthService.authenticate_user(username, password)
     
     if not user_data:
-        return jsonify({'message': user_role}), 401
+        return jsonify({'message': "Invalid Credentials"}), 401
 
     # Extract user details
     # print("user data", user_data)
