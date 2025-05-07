@@ -27,6 +27,7 @@ logger.info(f"Redmine URL: {REDMINE_URL}")
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
     cipher = Fernet(ENCRYPTION_KEY)
+    
     @staticmethod
     def authenticate_user(username, password):
         try:
