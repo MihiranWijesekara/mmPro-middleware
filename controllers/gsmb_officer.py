@@ -430,21 +430,23 @@ def upload_mining_license():
 
         # Get optional file uploads
         detailed_plan_file = request.files.get('detailed_mine_restoration_plan')
-        #economic_report_file = request.files.get('economic_viability_report')
-        boundary_survey_file = request.files.get('deed_and_survey_plan')
+        economic_report_file = request.files.get('economic_viability_report')
+        deed_and_survey_plan_file = request.files.get('deed_and_survey_plan')
         #license_fee_receipt_file = request.files.get('license_fee_receipt')
         payment_receipt_file = request.files.get('payment_receipt')
+        license_boundary_survey_file = request.files.get('license_boundary_survey')
+
 
         # Upload files to Redmine or your storage method
         file_fields = {
             "detailed_mine_restoration_plan": detailed_plan_file,
-            #"economic_viability_report": economic_report_file,
-            # "licensed_boundary_survey": boundary_survey_file,
-            "deed_and_survey_plan": boundary_survey_file,
+            "economic_viability_report": economic_report_file,
+            "license_boundary_survey": license_boundary_survey_file,
+            "deed_and_survey_plan": deed_and_survey_plan_file,
             # "license_fee_receipt": license_fee_receipt_file,
             "payment_receipt": payment_receipt_file
         }
-
+                 
         for field_name, file in file_fields.items():
             if file:
                 file_id_or_url = GsmbOfficerService.upload_file_to_redmine(file)
