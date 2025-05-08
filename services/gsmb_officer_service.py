@@ -308,7 +308,7 @@ class GsmbOfficerService:
                     "license_fee_receipt": attachment_urls.get("License fee receipt"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "professional": attachment_urls.get("Professional"),
-                    "deed and survey plan": attachment_urls.get("Deed and Survey Plan"),
+                    "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
                 }
 
