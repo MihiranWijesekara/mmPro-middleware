@@ -353,13 +353,13 @@ class GsmbOfficerService:
                 assigned_to_id = assigned_to.get("id")
                 assigned_to_details = None
 
-                if assigned_to_id:
-                    user_response = requests.get(
-                        f"{REDMINE_URL}/users/{assigned_to_id}.json",
-                        headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
-                    )
-                    if user_response.status_code == 200:
-                        assigned_to_details = user_response.json().get("user", {})
+                # if assigned_to_id:
+                #     user_response = requests.get(
+                #         f"{REDMINE_URL}/users/{assigned_to_id}.json",
+                #         headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+                #     )
+                #     if user_response.status_code == 200:
+                #         assigned_to_details = user_response.json().get("user", {})
 
                 ml_data = {
                     "id": issue.get("id"),
@@ -367,12 +367,12 @@ class GsmbOfficerService:
                     "status": issue.get("status", {}).get("name"),
                     "assigned_to": assigned_to.get("name"),
                     "created_on": issue.get("created_on"),
-                    "assigned_to_details": {
-                        "id": assigned_to_details.get("id"),
-                        "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
-                        "email": assigned_to_details.get("mail"),
-                        "custom_fields": assigned_to_details.get("custom_fields", [])
-                    } if assigned_to_details else None,
+                    # "assigned_to_details": {
+                    #     "id": assigned_to_details.get("id"),
+                    #     "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
+                    #     "email": assigned_to_details.get("mail"),
+                    #     "custom_fields": assigned_to_details.get("custom_fields", [])
+                    # } if assigned_to_details else None,
                     "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
                     "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
                     "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
@@ -604,10 +604,11 @@ class GsmbOfficerService:
                     ]
             # Attachments (file tokens if present)
             file_field_ids = {
-                "economic_viability_report": 70,
+                "economic_viability_report": 100,
                 "detailed_mine_restoration_plan": 72,
                 "deed_and_survey_plan":90,
                 "payment_receipt": 80,
+                "license_boundary_survey":105
                 # "license_fee_receipt": 81  # example if you've added this to tracker
             }
 
