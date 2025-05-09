@@ -106,10 +106,6 @@ def get_license_details(licenseId):
         return jsonify({"error": str(e)}), 500    
 
 
-
-
-
-
            # Update a license by ID
 @gsmb_officer_bp.route('/update-license/<int:licenseId>', methods=['PUT'])
 @check_token
@@ -124,7 +120,7 @@ def update_license(licenseId):
 
         # Get the payload from the request body (expected to be a JSON)
         payload = request.json 
-        # print(payload) 
+       
 
         #validate the payload, ensure required data is present 
         if not payload or 'issue' not in payload:
@@ -422,29 +418,25 @@ def upload_mining_license():
             "mobile_number":user_mobile
         }
 
-        # check for required fields
-        # required_fields = ['subject', 'start_date', 'administrative_district', 'divisional_secretary_division',
-        #                    'grama_niladhari_division', 'village_name', 'land_name', 'exploration_licence_no', 'author']
-        # if not all(data[field] for field in required_fields):
-        #     return jsonify({"error": "Missing required fields"}), 400
-
         # Get optional file uploads
         detailed_plan_file = request.files.get('detailed_mine_restoration_plan')
-        #economic_report_file = request.files.get('economic_viability_report')
+        economic_report_file = request.files.get('economic_viability_report')
         boundary_survey_file = request.files.get('deed_and_survey_plan')
         #license_fee_receipt_file = request.files.get('license_fee_receipt')
         payment_receipt_file = request.files.get('payment_receipt')
+        license_boundary_survey_file = request.files.get('license_boundary_survey')
+
 
         # Upload files to Redmine or your storage method
         file_fields = {
             "detailed_mine_restoration_plan": detailed_plan_file,
-            #"economic_viability_report": economic_report_file,
-            # "licensed_boundary_survey": boundary_survey_file,
+            "economic_viability_report": economic_report_file,
+            "license_boundary_survey": license_boundary_survey_file,
             "deed_and_survey_plan": boundary_survey_file,
             # "license_fee_receipt": license_fee_receipt_file,
             "payment_receipt": payment_receipt_file
         }
-
+                 
         for field_name, file in file_fields.items():
             if file:
                 file_id_or_url = GsmbOfficerService.upload_file_to_redmine(file)
@@ -614,6 +606,38 @@ def create_appointment():
 #Hold (status id = 39)
 #Valid (status id = 7)
 #Rejected(status id = 6)
+@gsmb_officer_bp.route('/approve-mining-license', methods=['POST'])
+@check_token
+@role_required(['GSMBOfficer'])
+def approve_license():
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        data = request.get_json()
+        issue_id = data.get('issue_id')
+        new_status_id = data.get('new_status_id')
+
+        if not all([issue_id, new_status_id]):
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        result = GsmbOfficerService.approve_mining_license(
+            token=token,
+            issue_id=issue_id,
+            new_status_id=new_status_id
+        )
+
+        # Handle response
+        if not result.get('success'):
+            return jsonify({"error": result.get('message', 'Approval failed')}), 500
+
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @gsmb_officer_bp.route('/update-issue-status', methods=['POST'])
 @check_token
 @role_required(['GSMBOfficer'])

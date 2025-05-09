@@ -69,57 +69,55 @@ def get_me_pending_licenses():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-# @mining_enginer_bp.route('/miningEngineer-approve/<int:issue_id>', methods=['PUT'])
-# @check_token
-# @role_required(['miningEngineer'])
-# def miningEngineer_approve(issue_id):                               
-#     try:
-#         # Extract token from headers
-#         auth_header = request.headers.get("Authorization")
-#         if not auth_header:
-#             return {"error": "Authorization token is missing"}, 400
-        
-#         token = auth_header.replace("Bearer ", "")
-#         if not token:
-#             return {"error": "Authorization token is invalid"}, 400
-        
-#         # Initialize custom fields
-#         custom_fields = []
-#         me_report_file = request.files.get('me_report') 
-
-#         # Upload the file to Redmine and get the file ID
-#         me_report_file_id = AuthService.upload_file_to_redmine(me_report_file) if me_report_file else None
-
-#         if me_report_file_id:
-#             custom_fields.append({"id": 94, "value": me_report_file_id})
-
-#         # Get update data from request body
-#         update_data = request.get_json()
-#         if not update_data:
-#             return {"error": "No update data provided"}, 400
-
-#         # Add custom fields to the update data
-#         update_data['custom_fields'] = custom_fields
-        
-#         # Call service to update the appointment
-#         result, error = MiningEnginerService.miningEngineer_approve(
-#             token=token,
-#             issue_id=issue_id,
-#             update_data=update_data
-#         )
-        
-#         if error:
-#             return {"error": error}, 500
-        
-#         return {"message": "Appointment updated successfully", "issue": result}, 200
-    
-#     except Exception as e:
-#         return {"error": f"Unexpected error: {str(e)}"}, 500
-
-@mining_enginer_bp.route('/miningEngineer-approve/<int:issue_id>', methods=['PUT'])
+@mining_enginer_bp.route('/create-ml-appointment', methods=['POST'])
 @check_token
 @role_required(['miningEngineer'])
-def miningEngineer_approve(issue_id):                               
+def create_ml_appointment():
+    try:
+        # 1. Extract token
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split()[1] if auth_header and ' ' in auth_header else auth_header
+        
+        if not token:
+            return jsonify({"error": "Authorization header missing"}), 401
+
+        # 2. Validate input
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body is empty"}), 400
+
+        required_fields = ['start_date', 'mining_license_number']
+        if not all(field in data for field in required_fields):
+            return jsonify({
+                "error": f"Missing required fields: {', '.join(required_fields)}"
+            }), 400
+
+        # 3. Call service
+        result, error = MiningEnginerService.create_ml_appointment(
+            token=token,
+            start_date=data['start_date'],
+            mining_license_number=data['mining_license_number']
+        )
+
+        # 4. Handle response
+        if error:
+            status_code = 500 if "Redmine error" in error else 400
+            return jsonify({"error": error}), status_code
+
+        return jsonify({
+            "success": True,
+            "data": result,
+            "message": "Appointment created successfully"
+        }), 201
+
+    except Exception as e:
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+    
+    
+@mining_enginer_bp.route('/miningEngineer-approve/<int:me_appointment_issue_id>', methods=['PUT'])
+@check_token
+@role_required(['miningEngineer'])
+def miningEngineer_approve(me_appointment_issue_id):                               
     try:
         # Extract token from headers
         auth_header = request.headers.get("Authorization")
@@ -132,7 +130,15 @@ def miningEngineer_approve(issue_id):
         
         me_report_file = request.files.get('me_report') 
 
+        ml_number_full = request.form.get("ml_number")  # e.g., "ML Request LLL/100/206"
+        if not ml_number_full:
+            return {"error": "ML number is required"}, 400
 
+        # Extract numeric part (e.g., 206)
+        try:
+            ml_request_id = ml_number_full.strip().split("/")[-1]
+        except Exception:
+            return {"error": "Invalid ML number format"}, 400
         # Upload the file to Redmine and get the file ID
         me_report_file_id = AuthService.upload_file_to_redmine(me_report_file) if me_report_file else None
 
@@ -152,7 +158,8 @@ def miningEngineer_approve(issue_id):
         # Call service to update the appointment
         result, error = MiningEnginerService.miningEngineer_approve(
             token=token,
-            issue_id=issue_id,
+            me_appointment_id = me_appointment_issue_id,
+            ml_id=ml_request_id,
             update_data=update_data,
             attachments={"me_report": me_report_file} if me_report_file else None
         )
@@ -166,10 +173,10 @@ def miningEngineer_approve(issue_id):
         return {"error": f"Unexpected error: {str(e)}"}, 500
     
 
-@mining_enginer_bp.route('/miningEngineer-reject/<int:issue_id>', methods=['PUT'])
+@mining_enginer_bp.route('/miningEngineer-reject/<int:me_appointment_issue_id>', methods=['PUT'])
 @check_token
 @role_required(['miningEngineer'])
-def miningEngineer_reject(issue_id):                               
+def miningEngineer_reject(me_appointment_issue_id):                               
     try:
         # Extract token from headers
         auth_header = request.headers.get("Authorization")
@@ -179,6 +186,16 @@ def miningEngineer_reject(issue_id):
         token = auth_header.replace("Bearer ", "")
         if not token:
             return {"error": "Authorization token is invalid"}, 400
+        
+        ml_number_full = request.form.get("ml_number")  # e.g., "ML Request LLL/100/206"
+        if not ml_number_full:
+            return {"error": "ML number is required"}, 400
+
+        # Extract numeric part (e.g., 206)
+        try:
+            ml_request_id = ml_number_full.strip().split("/")[-1]
+        except Exception:
+            return {"error": "Invalid ML number format"}, 400
         
         # Get rejection report file
         me_report_file = request.files.get('me_report') 
@@ -196,7 +213,8 @@ def miningEngineer_reject(issue_id):
         # Call service to update the issue in Redmine
         result, error = MiningEnginerService.miningEngineer_reject(
             token=token,
-            issue_id=issue_id,
+            ml_id=ml_request_id,
+            me_appointment_id = me_appointment_issue_id,
             update_data=update_data
         )
         
@@ -266,4 +284,73 @@ def get_me_meetingeShedule_licenses():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-   
+
+@mining_enginer_bp.route('/me-appointments', methods=['GET'])
+@check_token
+@role_required(['miningEngineer'])
+def get_me_appointments():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split()[1] if auth_header and ' ' in auth_header else auth_header
+        
+        if not token:
+            return jsonify({"error": "Authorization header missing"}), 401
+
+        result = MiningEnginerService.get_me_appointments(token)
+        
+        if "error" in result:
+            status_code = 500 if "Server error" in result["error"] else 400
+            return jsonify({"error": result["error"]}), status_code
+            
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@mining_enginer_bp.route('/me-approve-license', methods=['GET'])
+@check_token
+@role_required(['miningEngineer'])
+def get_me_approve_license():
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split()[1] if auth_header and ' ' in auth_header else auth_header
+        
+        if not token:
+            return jsonify({"error": "Authorization header missing"}), 401
+
+        result = MiningEnginerService.get_me_approve_license(token)
+        
+        if "error" in result:
+            status_code = 500 if "Server error" in result["error"] else 400
+            return jsonify({"error": result["error"]}), status_code
+            
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+@mining_enginer_bp.route('/me-approve-single-license/<int:issue_id>', methods=['GET'])
+@check_token
+@role_required(['miningEngineer'])
+def get_me_approve_single_license(issue_id):
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split()[1] if auth_header and ' ' in auth_header else auth_header
+        
+        if not token:
+            return jsonify({"error": "Authorization header missing"}), 401
+
+        result = MiningEnginerService.get_me_approve_single_license(token,issue_id=issue_id,)
+        
+        if "error" in result:
+            status_code = 500 if "Server error" in result["error"] else 400
+            return jsonify({"error": result["error"]}), status_code
+            
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
+

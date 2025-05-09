@@ -22,11 +22,12 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
 REDMINE_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 REDMINE_ADMIN_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
-logger.info(f"Redmine URL: {REDMINE_URL}")
+
 
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
     cipher = Fernet(ENCRYPTION_KEY)
+    
     @staticmethod
     def authenticate_user(username, password):
         try:
@@ -46,7 +47,6 @@ class AuthService:
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
-                # print(f"Checking project: {project_name}")
                 if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
@@ -69,7 +69,7 @@ class AuthService:
     def authenticate_google_token(token):
         try:
             # Verify the Google token using Google's OAuth2 service
-            print(token)
+           
             id_info = id_token.verify_oauth2_token(
                 token,
                 google_requests.Request(),
@@ -79,8 +79,6 @@ class AuthService:
 
             # Extract email from the token info
             email = id_info.get('email')
-            print(email)
-            print(f'the email is {email}')
             if not email:
                 return None, "Email not found in Google token"
 
@@ -298,7 +296,7 @@ class AuthService:
         # Validate the token
         cache_key = f"reset_token:{token}"
         email = cache.get(cache_key)
-        print(email)
+       
 
         if not email:
             return {'error': 'Invalid or expired token'}
@@ -359,6 +357,13 @@ class AuthService:
         return AuthService._register_officer("GSMB Officer", login, first_name, last_name, email, password, custom_fields)
 
     @staticmethod
+    def register_mining_engineer(login, first_name, last_name, email, password, custom_fields):
+        """
+        Registers a GSMB Officer in Redmine with status = inactive.
+        """
+        return AuthService._register_officer("Mining Engineer", login, first_name, last_name, email, password, custom_fields)
+    
+    @staticmethod
     def _register_officer(role, login, first_name, last_name, email, password, custom_fields):
         """
         Registers an officer in Redmine with status = inactive.
@@ -393,7 +398,7 @@ class AuthService:
         
     @staticmethod
     def upload_file_to_redmine(file):
-        print("inside file upload")
+     
         """
         Uploads a file to Redmine and returns the attachment ID.
         """
@@ -423,8 +428,9 @@ class AuthService:
             # The role ID corresponding to the "PoliceOfficer" role in your project
             role_ids = {
                 "PoliceOfficer": 7, 
-                "GSMBOfficer":6 # Role ID for "PoliceOfficer" as per your Redmine API response
-                # Add more roles and their IDs here as needed
+                "GSMBOfficer":6 ,# Role ID for "PoliceOfficer" as per your Redmine API response
+                "MLOwner":8,
+                "miningEngineer":10
             }
 
             # Get the correct role ID
@@ -467,6 +473,7 @@ class AuthService:
                 "firstname": first_name,
                 "lastname": last_name,
                 "mail": email,
+                "status": 3, 
                 "password": password,
                 "custom_fields": custom_fields
             }
@@ -502,7 +509,6 @@ class AuthService:
         REDMINE_URL = os.getenv("REDMINE_URL")
         admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
         
-        print("this is the description")
         url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
 
         headers = {
@@ -551,20 +557,3 @@ class AuthService:
         else:
             return None, response.json()
         
-
-    # @staticmethod
-    # def create_jwt_token(user_id,user_role, api_key):
-    #     """Utility function to create a JWT token."""
-    #     encrypted_api_key = AuthService.cipher.encrypt(api_key.encode()).decode()
-    #     expiration_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    #     jwt_token = jwt.encode(
-    #         {'role': user_role, 'user_id':user_id,'api_key':encrypted_api_key, 'exp': expiration_time},
-    #         Config.SECRET_KEY,
-    #         algorithm=Config.JWT_ALGORITHM
-    #     )
-    #     return jwt_token
-
-    # @staticmethod
-    # def decrypt_api_key(encrypted_api_key):
-    #     """Decrypt the API key."""
-    #     return AuthService.cipher.decrypt(encrypted_api_key.encode()).decode()

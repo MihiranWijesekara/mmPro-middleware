@@ -243,6 +243,25 @@ def ml_request():
 
 
 
+@mining_owner_bp.route('/get-mining-license-requests', methods=['GET'])
+@check_token
+@role_required(['MLOwner'])
+def get_mining_license_requests():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        mining_licenses, error = MLOwnerService.get_mining_license_requests(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": mining_licenses}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
