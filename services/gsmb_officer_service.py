@@ -20,7 +20,6 @@ class GsmbOfficerService:
         try:
             # 🔑 Extract user's API key from token for memberships request
             user_api_key = JWTUtils.get_api_key_from_token(token)
-            print(user_api_key)
             if not user_api_key:
                 return None, "Invalid or missing API key in the token"
 
@@ -102,98 +101,6 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
-
-#         @staticmethod
-# def get_mlowners(token):
-#     try:
-#         # 🔑 Extract user's API key from token for memberships request
-#         user_api_key = JWTUtils.get_api_key_from_token(token)
-#         print(user_api_key)
-#         if not user_api_key:
-#             return None, "Invalid or missing API key in the token"
-
-#         # 🔑 Get Redmine Admin API key for user details request
-#         admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
-#         if not admin_api_key:
-#             return None, "Environment variable 'REDMINE_ADMIN_API_KEY' is not set"
-
-#         # 🌐 Get Redmine URL
-#         REDMINE_URL = os.getenv("REDMINE_URL")
-#         print(REDMINE_URL)
-#         if not REDMINE_URL:
-#             return None, "Environment variable 'REDMINE_URL' is not set"
-
-#         # 1️⃣ Fetch memberships using the **user's API key**
-#         memberships_url = f"{REDMINE_URL}/projects/mmpro-gsmb/memberships.json"
-#         memberships_response = requests.get(
-#             memberships_url, 
-#             headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
-#         )
-
-#         if memberships_response.status_code != 200:
-#             return None, f"Failed to fetch memberships: {memberships_response.status_code} - {memberships_response.text}"
-
-#         memberships = memberships_response.json().get("memberships", [])
-
-#         # 2️⃣ Filter users who have the role "MLOwner"
-#         ml_owner_ids = [
-#             membership['user']['id'] for membership in memberships
-#             if any(role["name"] == "MLOwner" for role in membership.get("roles", []))
-#         ]
-
-#         if not ml_owner_ids:
-#             return [], None  # No MLOwner users found
-
-#         # 3️⃣ Fetch user details using the **admin API key** (for broader access)
-#         users_url = f"{REDMINE_URL}/users.json?status=1&limit=100"
-#         users_response = requests.get(
-#             users_url, 
-#             headers={"X-Redmine-API-Key": admin_api_key, "Content-Type": "application/json"}
-#         )
-
-#         if users_response.status_code != 200:
-#             return None, f"Failed to fetch user details: {users_response.status_code} - {users_response.text}"
-
-#         all_users = users_response.json().get("users", [])
-
-#         # 4️⃣ Filter users who match MLOwner IDs AND have User Type = mlOwner
-#         ml_owners_details = [
-#             user for user in all_users 
-#             if user["id"] in ml_owner_ids and 
-#                any(field["name"] == "User Type" and field["value"] == "mlOwner" 
-#                    for field in user.get("custom_fields", []))
-#         ]
-
-#         # Fetch the mining license counts for all users
-#         license_counts, license_error = GsmbOfficerService.get_mining_license_counts(token)
-#         if license_error:
-#             return None, license_error
-
-#         # 5️⃣ Map license count to each MLOwner
-#         formatted_ml_owners = []
-#         for ml_owner in ml_owners_details:
-#             owner_name = f"{ml_owner.get('firstname', '')} {ml_owner.get('lastname', '')}"
-#             ml_owner_name = owner_name.strip()
-#             license_count = license_counts.get(ml_owner_name, 0)
-
-#             # Prepare formatted output
-#             formatted_owner = {
-#                 "id": ml_owner["id"],
-#                 "ownerName": ml_owner_name,
-#                 "NIC": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "National Identity Card"), ""),
-#                 "email": ml_owner.get("mail", ""),
-#                 "phoneNumber": next((field["value"] for field in ml_owner.get("custom_fields", []) if field["name"] == "Mobile Number"), ""),
-#                 "totalLicenses": license_count
-#             }
-            
-#             formatted_ml_owners.append(formatted_owner)
-#             print(formatted_owner["totalLicenses"])
-
-#         return formatted_ml_owners, None  # ✅ Return the formatted user details with license count
-
-#     except Exception as e:
-#         return None, f"Server error: {str(e)}"
-
     @staticmethod
     def get_tpls(token):
         try:
@@ -354,13 +261,13 @@ class GsmbOfficerService:
                 assigned_to_id = assigned_to.get("id")
                 assigned_to_details = None
 
-                if assigned_to_id:
-                    user_response = requests.get(
-                        f"{REDMINE_URL}/users/{assigned_to_id}.json",
-                        headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
-                    )
-                    if user_response.status_code == 200:
-                        assigned_to_details = user_response.json().get("user", {})
+                # if assigned_to_id:
+                #     user_response = requests.get(
+                #         f"{REDMINE_URL}/users/{assigned_to_id}.json",
+                #         headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+                #     )
+                #     if user_response.status_code == 200:
+                #         assigned_to_details = user_response.json().get("user", {})
 
                 ml_data = {
                     "id": issue.get("id"),
@@ -368,12 +275,12 @@ class GsmbOfficerService:
                     "status": issue.get("status", {}).get("name"),
                     "assigned_to": assigned_to.get("name"),
                     "created_on": issue.get("created_on"),
-                    "assigned_to_details": {
-                        "id": assigned_to_details.get("id"),
-                        "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
-                        "email": assigned_to_details.get("mail"),
-                        "custom_fields": assigned_to_details.get("custom_fields", [])
-                    } if assigned_to_details else None,
+                    # "assigned_to_details": {
+                    #     "id": assigned_to_details.get("id"),
+                    #     "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
+                    #     "email": assigned_to_details.get("mail"),
+                    #     "custom_fields": assigned_to_details.get("custom_fields", [])
+                    # } if assigned_to_details else None,
                     "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
                     "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
                     "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
@@ -558,7 +465,6 @@ class GsmbOfficerService:
         
     @staticmethod
     def upload_file_to_redmine(file):
-        print("inside file upload")
         """
         Uploads a file to Redmine and returns the attachment ID.
         """
@@ -612,6 +518,7 @@ class GsmbOfficerService:
                 "deed_and_survey_plan":90,
                 "payment_receipt": 80,
                 "license_boundary_survey": 105,
+
                 # "license_fee_receipt": 81  # example if you've added this to tracker
             }
 
