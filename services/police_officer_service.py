@@ -129,9 +129,9 @@ class PoliceOfficerService:
 
     @staticmethod
     def create_complaint(vehicleNumber, userID, token):
-        print("the user id is", userID)
+       
         phoneNumber = UserUtils.get_user_phone(userID)
-        print("the phone number is", phoneNumber)
+       
 
         issue_data = {
                 'issue': {
