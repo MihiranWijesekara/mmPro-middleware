@@ -8,30 +8,6 @@ import requests
 
 auth_bp = Blueprint('auth_controller', __name__)
 
-# @auth_bp.route('/login', methods=['POST'])
-# def login():
-#     data = request.get_json()
-#     username = data.get('username')
-#     password = data.get('password')
-
-#     if not username or not password:
-#         return jsonify({'message': 'Username and password are required'}), 400
-
-#     user_data, user_role, api_key = AuthService.authenticate_user(username, password)
-    
-#     if not user_data:
-#         return jsonify({'message': user_role}), 401
-
-#     # Create a User object
-    
-#     user_id=user_data.get('id'),
-#     username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
-
-#     # Create JWT token using the User's role, api_key, and user_id
-#     jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
-
-#     return jsonify({'token': jwt_token, 'role': user_role, 'username':username,'userId':user_id})
-
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -118,13 +94,13 @@ def refresh_token():
             return jsonify({"message": "Invalid refresh token"}), 401
 
         user_id = decoded_payload["user_id"]
-        print(user_id)
+      
         user_role = decoded_payload["role"]
-        print(user_role)
+       
 
 
         api_key = UserUtils.get_user_api_key(user_id)
-        print(api_key)
+       
 
         new_access_token = JWTUtils.create_access_token(user_id, user_role, api_key)
 
@@ -137,7 +113,7 @@ def refresh_token():
     except jwt.InvalidTokenError:
         return jsonify({"message": "Invalid token"}), 401
     except Exception as e:
-        print(f"Error processing token: {e}")  # Log error internally
+       
         return jsonify({"message": "Internal server error"}), 500
 
 @auth_bp.route('/forgot-password', methods=['POST'])
@@ -392,12 +368,7 @@ def register_individual_mlowner():
         # Prepare custom fields for individual
         custom_fields = [
             {"id": 41, "value": data['national_identity_card']},  # National Identity Card
-            # {"id": 42, "value": data.get('address', '')},  # Address
-            # {"id": 43, "value": data.get('nationality', '')},  # Nationality
             {"id": 65, "value": data.get('mobile_number', '')},  # Mobile Number
-            # {"id": 45, "value": data.get('employment_name_of_employer', '')},  # Employment, Name of employer
-            # {"id": 46, "value": data.get('place_of_business', '')},  # Place of Business
-            # {"id": 48, "value": data.get('residence', '')}  # Residence
             {"id": 89, "value": 'mlOwner'},
         ]
 
