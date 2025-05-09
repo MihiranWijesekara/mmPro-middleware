@@ -421,7 +421,7 @@ def upload_mining_license():
         # Get optional file uploads
         detailed_plan_file = request.files.get('detailed_mine_restoration_plan')
         economic_report_file = request.files.get('economic_viability_report')
-        deed_and_survey_plan_file = request.files.get('deed_and_survey_plan')
+        boundary_survey_file = request.files.get('deed_and_survey_plan')
         #license_fee_receipt_file = request.files.get('license_fee_receipt')
         payment_receipt_file = request.files.get('payment_receipt')
         license_boundary_survey_file = request.files.get('license_boundary_survey')
@@ -432,7 +432,7 @@ def upload_mining_license():
             "detailed_mine_restoration_plan": detailed_plan_file,
             "economic_viability_report": economic_report_file,
             "license_boundary_survey": license_boundary_survey_file,
-            "deed_and_survey_plan": deed_and_survey_plan_file,
+            "deed_and_survey_plan": boundary_survey_file,
             # "license_fee_receipt": license_fee_receipt_file,
             "payment_receipt": payment_receipt_file
         }
