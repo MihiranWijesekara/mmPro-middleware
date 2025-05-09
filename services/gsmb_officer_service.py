@@ -217,6 +217,7 @@ class GsmbOfficerService:
                     "professional": attachment_urls.get("Professional"),
                     "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
+                    "license_boundary_survey": attachment_urls.get("License Boundary Survey"),
                 }
 
                 formatted_mls.append(formatted_ml)
@@ -289,10 +290,11 @@ class GsmbOfficerService:
                     "administrative_district": GsmbOfficerService.get_custom_field_value(custom_fields, "Administrative District"),
                     "google_location": GsmbOfficerService.get_custom_field_value(custom_fields, "Google location "),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mobile Number"),
-                   # "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                    "economic_viability_report": attachment_urls.get("Economic Viability Report"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
                     "payment_receipt": attachment_urls.get("Payment Receipt"),
+                    "license_boundary_survey": attachment_urls.get("License Boundary Survey"),
 
                 }
 
@@ -385,7 +387,8 @@ class GsmbOfficerService:
                 "Detailed Mine Restoration Plan": None,
                 "Professional": None,
                 "Deed and Survey Plan": None,
-                "Payment Receipt": None
+                "Payment Receipt": None,
+                "License Boundary Survey": None
             }
 
             # Extract attachment IDs from custom fields
@@ -514,7 +517,8 @@ class GsmbOfficerService:
                 "detailed_mine_restoration_plan": 72,
                 "deed_and_survey_plan":90,
                 "payment_receipt": 80,
-                "license_boundary_survey":105
+                "license_boundary_survey": 105,
+
                 # "license_fee_receipt": 81  # example if you've added this to tracker
             }
 
