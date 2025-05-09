@@ -106,10 +106,6 @@ def get_license_details(licenseId):
         return jsonify({"error": str(e)}), 500    
 
 
-
-
-
-
            # Update a license by ID
 @gsmb_officer_bp.route('/update-license/<int:licenseId>', methods=['PUT'])
 @check_token
@@ -124,7 +120,7 @@ def update_license(licenseId):
 
         # Get the payload from the request body (expected to be a JSON)
         payload = request.json 
-        # print(payload) 
+       
 
         #validate the payload, ensure required data is present 
         if not payload or 'issue' not in payload:
@@ -422,12 +418,6 @@ def upload_mining_license():
             "mobile_number":user_mobile
         }
 
-        # check for required fields
-        # required_fields = ['subject', 'start_date', 'administrative_district', 'divisional_secretary_division',
-        #                    'grama_niladhari_division', 'village_name', 'land_name', 'exploration_licence_no', 'author']
-        # if not all(data[field] for field in required_fields):
-        #     return jsonify({"error": "Missing required fields"}), 400
-
         # Get optional file uploads
         detailed_plan_file = request.files.get('detailed_mine_restoration_plan')
         economic_report_file = request.files.get('economic_viability_report')
@@ -638,7 +628,6 @@ def approve_license():
             new_status_id=new_status_id
         )
 
-        print("result", result)
         # Handle response
         if not result.get('success'):
             return jsonify({"error": result.get('message', 'Approval failed')}), 500

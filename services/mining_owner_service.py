@@ -21,21 +21,18 @@ class MLOwnerService:
     @staticmethod
     def mining_licenses(token):
         try:
-            print("Starting mining_licenses method...")
             REDMINE_URL = os.getenv("REDMINE_URL")
             API_KEY = JWTUtils.get_api_key_from_token(token)
 
             if not REDMINE_URL or not API_KEY:
-                print("Redmine URL or API Key is missing")
                 return None, "Redmine URL or API Key is missing"
 
             # Step 1: Extract user_id from the token
             user_id, error = MLOUtils.get_user_info_from_token(token)
             if not user_id:
-                print(f"Error extracting user_id: {error}")
                 return None, error
 
-            print(f"User ID from token: {user_id}")
+            
 
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
@@ -50,7 +47,7 @@ class MLOwnerService:
             }
 
             limit = LimitUtils.get_limit()
-            print(f"Fetching issues with limit: {limit}")
+            
             response = requests.get(
                 f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
                 params=params,
@@ -69,7 +66,7 @@ class MLOwnerService:
             filtered_issues = [
                 issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
             ]
-            print(f"Filtered {len(filtered_issues)} issues for user {user_id}")
+           
  
             # Step 4: Extract and format the required fields
             relevant_issues = []
@@ -107,7 +104,7 @@ class MLOwnerService:
                     "Royalty": roylaty
                 })
 
-            print("Returning relevant issues")
+        
             return relevant_issues, None  # Returning filtered issues and no error
 
         except Exception as e:
@@ -129,7 +126,7 @@ class MLOwnerService:
             if not user_id:
                 return None, error
             
-            print("user_id", user_id)
+        
 
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
@@ -229,23 +226,12 @@ class MLOwnerService:
             if not REDMINE_URL:
                 return None, "Redmine URL is not configured"
 
-            print("Redmine URL:", REDMINE_URL)
-
-            # First check if lorry already has an active TPL license
-            # lorry_number = data.get("lorry_number")
-            # if lorry_number:
-            #     is_valid, error = GeneralPublicService.is_lorry_number_valid(lorry_number)
-            # if error:
-            #     return None, f"Error checking lorry license status: {error}"
-            # if is_valid:
-            #     return None, "This lorry already has an active Transport License"
 
             # Get the API key from the token
             API_KEY = JWTUtils.get_api_key_from_token(token)
             if not API_KEY:
                 return None, "Invalid or missing API key"
 
-            # print("API Key:", API_KEY)
 
             # Fetch the current mining license issue to get Used and Remaining values
             mining_license_number = data.get("mining_license_number")
@@ -273,8 +259,7 @@ class MLOwnerService:
 
             # Log the Redmine API response for debugging
             mining_issue_data = mining_issue_response.json()
-            print("Mining Issue Response:", mining_issue_data)
-
+            
             # Get the issue details
             mining_issue = mining_issue_data.get("issue")
             if not mining_issue:
@@ -318,18 +303,11 @@ class MLOwnerService:
                     ]
                 }
             }
-            # Log the update payload for debugging
-            print("Update Payload:", update_payload)
-
 
             # Send a PUT request to update the mining license issue
             update_url = f"{REDMINE_URL}/issues/{mining_issue_id}.json"
             update_response = requests.put(update_url, json=update_payload, headers=headers)
-            print("Mining License id url:", update_url)
-             # Log the Redmine API response for debugging
-            print("Update Response Status Code:", update_response.status_code)
-            # print("Update Response Body:", update_response.json())  
-
+            
             if update_response.status_code != 204:
                 return None, "Failed to update mining license issue"
 
@@ -342,19 +320,16 @@ class MLOwnerService:
 
             # Calculate estimated time between route_01 and destination
             time_result = MLOwnerService.calculate_time(route_01, destination)
-            print(time_result)
+          
             if not time_result.get("success"):
                 return None, time_result.get("error")
 
             time_hours = time_result.get("time_hours", 0)
 
-            print("the token is ", token)
             result = JWTUtils.decode_jwt_and_get_user_id(token)
 
             user_id = result['user_id']
             
-            print("assinging  id : " , user_id)
-            # Prepare the payload for the TPL request
             payload = {
                 "issue": {
                     "project_id": 1,  # Replace with actual project ID
@@ -381,8 +356,6 @@ class MLOwnerService:
 
             response = requests.post(REDMINE_API_URL, json=payload, headers=headers)
 
-            print("TPL Issue Creation Response Status Code:", response.status_code)
-            print("TPL Issue Creation Response Body:", response.text)  # Debugging line
 
             # Check if the response is empty before parsing as JSON
             if response.status_code == 201:
@@ -412,7 +385,6 @@ class MLOwnerService:
         try:
             # Step 1: Geocode cities to get coordinates
             def geocode_location(city_name): 
-                print("first request ins")
                 url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json"
                 headers = {
                     "User-Agent": "YourAppName/1.0 (your.email@example.com)"  # <-- important for Nominatim usage policy
@@ -430,7 +402,6 @@ class MLOwnerService:
                 if response:
                     lat = float(response[0]['lat'])
                     lon = float(response[0]['lon'])
-                    print(lat, lon)
                     return lon, lat  # Return as [longitude, latitude]
                 else:
                     raise ValueError(f"Location '{city_name}' not found")
@@ -439,7 +410,6 @@ class MLOwnerService:
             coord1 = geocode_location(city1)
             coord2 = geocode_location(city2)
 
-            print("second request")
 
             # Step 2: Calculate distance using OpenRouteService
             url = "https://api.openrouteservice.org/v2/directions/driving-car"
@@ -484,22 +454,14 @@ class MLOwnerService:
             }
             update_data = {"issue": data}  # Ensure "issue" is wrapped correctly
 
-            print("------------------------------------------------")
-            print("Request Payload:", data)
-            print("------------------------------------------------")
-            print('\n\n\n\n\n')
-            print("data payload", json.dumps(data))
-            print('Headers', headers)
             url = f"{REDMINE_URL}/issues/{issue_id}.json"
-            print("URL:", url)
+           
             response = requests.put(
                 url,
                 json = data,  # Ensure correct JSON structure
                 headers=headers
             )
 
-            print("Response Status Code:", response.status_code)
-            print("Response Headers:", response.headers)
 
             # Check if response is empty (204 No Content)
             if response.status_code == 204:
@@ -535,7 +497,7 @@ class MLOwnerService:
             }
             limit = LimitUtils.get_limit()
             url = f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}"
-            # print(f"Requesting: {url}")
+         
 
             response = requests.get(url, headers=headers)
 
@@ -571,7 +533,7 @@ class MLOwnerService:
                 "Content-Type": "application/json"
             }
             url = f"{REDMINE_URL}/users/{user_id}.json"
-            # print("URL:", url)
+           
             response = requests.get(
                 url,  # Ensure correct JSON structure
                 headers=headers
@@ -592,7 +554,7 @@ class MLOwnerService:
     @staticmethod
     def view_tpls(token: str, mining_license_number: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
-            print(f"Starting view_tpls for license: {mining_license_number}") # Keep for debugging
+        
 
             if not mining_license_number or not mining_license_number.strip():
                 return None, "Valid mining license number is required"
@@ -606,14 +568,12 @@ class MLOwnerService:
 
 
             if not REDMINE_URL or not API_KEY:
-                print("Error: Missing REDMINE_URL or API_KEY environment variables or token invalid.") # More specific logging
                 return None, "System configuration error - missing Redmine URL or API Key"
 
             # --- Authentication/User Info (Optional but kept from original) ---
             # Assuming MLOUtils has a method like this
             user_id, error = MLOUtils.get_user_info_from_token(token) 
             if not user_id:
-                print(f"Authentication error: {error}") # Log error
                 return None, f"Authentication error: {error}"
 
             # Get all TPL issues (tracker_id=5) without filtering by custom field in params
@@ -631,7 +591,7 @@ class MLOwnerService:
             limit = LimitUtils.get_limit() if LimitUtils.get_limit() else 100 # Use a default if needed
             
             api_url = f"{REDMINE_URL}/issues.json" # Simplified URL, project filter is in params
-            print(f"Requesting Redmine API: {api_url} with params: {params}") # Debugging
+           
 
             response = requests.get(
                 api_url,
@@ -640,21 +600,21 @@ class MLOwnerService:
                 timeout=30 # Add a timeout
             )
 
-            print(f"Redmine API response status: {response.status_code}") # Debugging
+            
 
             if response.status_code != 200:
                 error_msg = f"Redmine API error ({response.status_code}): {response.text}"
-                print(error_msg) # Log the error
+             
                 return None, error_msg
 
             # --- Process Results ---
             try:
                 response_data = response.json()
                 issues = response_data.get("issues", [])
-                print(f"Received {len(issues)} issues from Redmine API.") # Debugging
+                
             except ValueError: # Handle cases where response is not valid JSON
                  error_msg = f"Redmine API error: Invalid JSON response. Status: {response.status_code}, Body: {response.text}"
-                 print(error_msg)
+                 
                  return None, "Failed to parse response from Redmine"
 
 
@@ -697,7 +657,7 @@ class MLOwnerService:
                             status = "Active" if current_datetime < expiration_datetime else "Expired"
 
                         except ValueError as e:
-                            print(f"Date parsing error for issue {issue.get('id')}: {str(e)}")
+                           
                             continue  # Skip to next issue on error
 
                     tpl_data = {
@@ -728,7 +688,6 @@ class MLOwnerService:
 
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error connecting to Redmine: {str(e)}"
-            print(error_msg)
             return None, error_msg
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
@@ -743,8 +702,6 @@ class MLOwnerService:
             REDMINE_URL = os.getenv("REDMINE_URL")
             if not REDMINE_URL:
                 return None, "Redmine URL is not configured"
-
-            print("Redmine URL:", REDMINE_URL)
 
             # Get the API key from the token
             API_KEY = JWTUtils.get_api_key_from_token(token)

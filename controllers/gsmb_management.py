@@ -42,7 +42,6 @@ def fetch_top_mining_holders():
 @check_token                 
 @role_required(['GSMBManagement'])
 def fetch_royalty_counts():
-    print("fetch-royalty-counts")
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Authorization token is required"}), 401
@@ -61,7 +60,6 @@ def fetch_royalty_counts():
 @check_token                 
 @role_required(['GSMBManagement'])         
 def monthly_mining_license_count():
-    print("monthly-mining-license-count")
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Authorization token is required"}), 401

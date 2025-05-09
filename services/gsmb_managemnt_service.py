@@ -693,11 +693,6 @@ class GsmbManagmentService:
             params = {"status": 3, "include": "custom_fields"}
             request_url = f"{REDMINE_URL}/users.json?status=3"
 
-        # Debug output
-            print(f"\n=== DEBUG INFORMATION ===")
-            print(f"Request URL: {request_url}")
-            print(f"Using API Key: {api_key[:5]}...{api_key[-5:]}")
-            print(f"Request Headers: {headers}\n")
 
             response = requests.get(
                 f"{REDMINE_URL}/users.json",

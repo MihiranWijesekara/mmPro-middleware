@@ -22,7 +22,7 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 REDMINE_URL = os.getenv("REDMINE_URL")
 REDMINE_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
 REDMINE_ADMIN_API_KEY = os.getenv("REDMINE_ADMIN_API_KEY")
-logger.info(f"Redmine URL: {REDMINE_URL}")
+
 
 class AuthService:
     ENCRYPTION_KEY = Fernet.generate_key()  # Generate only once and store safely
@@ -47,7 +47,6 @@ class AuthService:
             gsm_project_role = None
             for membership in user_data.get('memberships', []):
                 project_name = membership.get('project', {}).get('name')
-                # print(f"Checking project: {project_name}")
                 if project_name == "MMPRO-GSMB":
                     roles = membership.get('roles', [])
                     if roles:
@@ -70,7 +69,7 @@ class AuthService:
     def authenticate_google_token(token):
         try:
             # Verify the Google token using Google's OAuth2 service
-            print(token)
+           
             id_info = id_token.verify_oauth2_token(
                 token,
                 google_requests.Request(),
@@ -80,8 +79,6 @@ class AuthService:
 
             # Extract email from the token info
             email = id_info.get('email')
-            print(email)
-            print(f'the email is {email}')
             if not email:
                 return None, "Email not found in Google token"
 
@@ -299,7 +296,7 @@ class AuthService:
         # Validate the token
         cache_key = f"reset_token:{token}"
         email = cache.get(cache_key)
-        print(email)
+       
 
         if not email:
             return {'error': 'Invalid or expired token'}
@@ -401,7 +398,7 @@ class AuthService:
         
     @staticmethod
     def upload_file_to_redmine(file):
-        print("inside file upload")
+     
         """
         Uploads a file to Redmine and returns the attachment ID.
         """
@@ -432,7 +429,6 @@ class AuthService:
             role_ids = {
                 "PoliceOfficer": 7, 
                 "GSMBOfficer":6 ,# Role ID for "PoliceOfficer" as per your Redmine API response
-                # Add more roles and their IDs here as needed
                 "MLOwner":8,
                 "miningEngineer":10
             }
@@ -513,7 +509,6 @@ class AuthService:
         REDMINE_URL = os.getenv("REDMINE_URL")
         admin_api_key = os.getenv("REDMINE_ADMIN_API_KEY")
         
-        print("this is the description")
         url = f"{REDMINE_URL}/uploads.json?filename={file.filename}"
 
         headers = {
@@ -562,20 +557,3 @@ class AuthService:
         else:
             return None, response.json()
         
-
-    # @staticmethod
-    # def create_jwt_token(user_id,user_role, api_key):
-    #     """Utility function to create a JWT token."""
-    #     encrypted_api_key = AuthService.cipher.encrypt(api_key.encode()).decode()
-    #     expiration_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    #     jwt_token = jwt.encode(
-    #         {'role': user_role, 'user_id':user_id,'api_key':encrypted_api_key, 'exp': expiration_time},
-    #         Config.SECRET_KEY,
-    #         algorithm=Config.JWT_ALGORITHM
-    #     )
-    #     return jwt_token
-
-    # @staticmethod
-    # def decrypt_api_key(encrypted_api_key):
-    #     """Decrypt the API key."""
-    #     return AuthService.cipher.decrypt(encrypted_api_key.encode()).decode()
