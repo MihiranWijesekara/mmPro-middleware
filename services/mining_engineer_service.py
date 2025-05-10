@@ -76,8 +76,7 @@ class MiningEnginerService:
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
-                "tracker_id": 4 , # ML tracker ID
-                "status_id": "!7"
+                "tracker_id": 4,  # ML tracker ID
             }
 
             headers = {
@@ -102,12 +101,18 @@ class MiningEnginerService:
             data = response.json()
             issues = data.get("issues", [])
 
+            # Filter issues based on status_id
+            valid_status_ids = {26, 31, 32,6}
             processed_issues = []
             for issue in issues:
+                status_id = issue.get("status", {}).get("id")
+                if status_id not in valid_status_ids:
+                    continue
+
                 # Process custom fields using IDs
                 custom_fields = {field['id']: field['value']
-                                for field in issue.get('custom_fields', [])
-                                if field.get('value') and str(field.get('value')).strip()}
+                                 for field in issue.get('custom_fields', [])
+                                 if field.get('value') and str(field.get('value')).strip()}
 
                 attachment_urls = MiningEnginerService.get_attachment_urls(API_KEY, REDMINE_URL, issue.get("custom_fields", []))
 
@@ -721,5 +726,4 @@ class MiningEnginerService:
             return processed_issue
 
         except Exception as e:
-            return {"error": f"Server error: {str(e)}"}         
-        
+            return {"error": f"Server error: {str(e)}"}
