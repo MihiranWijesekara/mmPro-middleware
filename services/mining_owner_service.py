@@ -112,6 +112,112 @@ class MLOwnerService:
             return None, f"Server error: {str(e)}"
 
     # Home function (mining_homeLicenses)
+    # @staticmethod
+    # def mining_homeLicenses(token):
+    #     try:
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+    #         API_KEY = JWTUtils.get_api_key_from_token(token)
+
+    #         if not REDMINE_URL or not API_KEY:
+    #             return None, "Redmine URL or API Key is missing"
+
+    #         # Step 1: Extract user_id from the token
+    #         user_id, error = MLOUtils.get_user_info_from_token(token)
+    #         if not user_id:
+    #             return None, error
+            
+        
+
+    #         # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
+    #         params = {
+    #             "project_id": 1,
+    #             "tracker_id": 4,  # ML tracker ID
+    #             "status_id": 7 
+    #         }
+
+    #         headers = {
+    #             "X-Redmine-API-Key": API_KEY
+    #         }
+
+    #         # Make the Redmine request
+    #         limit = LimitUtils.get_limit()
+    #         response = requests.get(
+    #             f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
+    #             params=params,
+    #             headers=headers
+    #         )
+
+    #         # Check if the request was successful
+    #         if response.status_code != 200:
+    #             return None, f"Failed to fetch issues: {response.status_code} - {response.text}"
+
+    #         issues = response.json().get("issues", [])
+
+    #         # Step 3: Filter the issues based on the logged-in user's user_id
+    #         filtered_issues = [
+    #             issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
+    #         ]
+
+    #         filtered_issues_sorted = sorted(
+    #         filtered_issues,
+    #         key=lambda x: (
+    #             datetime.strptime(x.get("updated_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("updated_on") else datetime.min,
+    #             datetime.strptime(x.get("created_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("created_on") else datetime.min
+    #         ),
+    #         reverse=True
+    #         )
+            
+    #         relevant_issues = []
+    #         for issue in filtered_issues_sorted:
+    #             # Extract custom fields
+    #             custom_fields = issue.get("custom_fields", [])
+    #             custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
+
+    #             # Get required fields
+    #             license_number = custom_fields_dict.get("Mining License Number", "N/A")  
+
+    #             license_number = custom_fields_dict.get("Mining License Number", "N/A")  
+    #             divisional_secretary = custom_fields_dict.get("Divisional Secretary Division", "N/A")
+    #             owner_name = issue.get("Name of Applicant OR Company", "N/A")
+    #             location = custom_fields_dict.get("Name of village ", "N/A")
+    #             start_date = issue.get("start_date", "N/A")
+    #             due_date = issue.get("due_date", "N/A")
+    #             remaining_str = custom_fields_dict.get("Remaining", "0")
+    #             try:
+    #                 remaining_cubes = int(remaining_str) if remaining_str.strip() else 0
+    #             except ValueError:
+    #                 remaining_cubes = 0
+    #             royalty = custom_fields_dict.get("Royalty", "N/A")
+                
+
+    #             # Determine status
+    #             current_date = datetime.now().date()
+    #             due_date_obj = datetime.strptime(due_date, "%Y-%m-%d").date() if due_date != "N/A" else None
+
+    #             if due_date_obj and (current_date > due_date_obj or remaining_cubes <= 0):
+    #                 status = "Expired"
+    #             else:
+    #                 status = "Active"
+
+    #             # Append formatted issue data
+    #             relevant_issues.append({
+    #                 "License Number": license_number,
+    #                 "Divisional Secretary Division": divisional_secretary,
+    #                 "Owner Name": owner_name,
+    #                 "Location": location,
+    #                 "Start Date": start_date,
+    #                 "Due Date": due_date,
+    #                 "Remaining Cubes": remaining_cubes,
+    #                 "Status": status,
+    #                 "Royalty": royalty
+    #             })
+
+    #         # Return the relevant issue data
+    #         return relevant_issues, None  # Returning filtered issues and no error
+
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
+
     @staticmethod
     def mining_homeLicenses(token):
         try:
@@ -125,14 +231,12 @@ class MLOwnerService:
             user_id, error = MLOUtils.get_user_info_from_token(token)
             if not user_id:
                 return None, error
-            
-        
 
             # Step 2: Define query parameters for project_id=1 and tracker_id=4 (ML)
             params = {
                 "project_id": 1,
                 "tracker_id": 4,  # ML tracker ID
-                "status_id": 7 
+                "status_id": 7
             }
 
             headers = {
@@ -153,70 +257,55 @@ class MLOwnerService:
 
             issues = response.json().get("issues", [])
 
-            # Step 3: Filter the issues based on the logged-in user's user_id
-            filtered_issues = [
-                issue for issue in issues if MLOUtils.issue_belongs_to_user(issue, user_id)
-            ]
-
-            filtered_issues_sorted = sorted(
-            filtered_issues,
-            key=lambda x: (
-                datetime.strptime(x.get("updated_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("updated_on") else datetime.min,
-                datetime.strptime(x.get("created_on"), "%Y-%m-%dT%H:%M:%SZ") if x.get("created_on") else datetime.min
-            ),
-            reverse=True
-            )
-            
             relevant_issues = []
-            for issue in filtered_issues_sorted:
-                # Extract custom fields
-                custom_fields = issue.get("custom_fields", [])
-                custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
+            current_date = datetime.now().date()
 
-                # Get required fields
-                license_number = custom_fields_dict.get("Mining License Number", "N/A")  
-
-                license_number = custom_fields_dict.get("Mining License Number", "N/A")  
-                divisional_secretary = custom_fields_dict.get("Divisional Secretary Division", "N/A")
-                owner_name = issue.get("Name of Applicant OR Company", "N/A")
-                location = custom_fields_dict.get("Name of village ", "N/A")
-                start_date = issue.get("start_date", "N/A")
+            for issue in issues:
+                assigned_to = issue.get("assigned_to", {})
+                assigned_user_id = assigned_to.get("id", None)
                 due_date = issue.get("due_date", "N/A")
-                remaining_str = custom_fields_dict.get("Remaining", "0")
-                try:
-                    remaining_cubes = int(remaining_str) if remaining_str.strip() else 0
-                except ValueError:
-                    remaining_cubes = 0
-                royalty = custom_fields_dict.get("Royalty", "N/A")
                 
+                # Combined filter for assigned user and due date existence
+                if assigned_user_id == user_id and due_date != "N/A":
+                    due_date_obj = datetime.strptime(due_date, "%Y-%m-%d").date()
+                    
+                    # Check due date is after current date
+                    if due_date_obj > current_date:
+                        # Extract fields
+                        custom_fields = issue.get("custom_fields", [])
+                        custom_fields_dict = {field["name"]: field["value"] for field in custom_fields}
 
-                # Determine status
-                current_date = datetime.now().date()
-                due_date_obj = datetime.strptime(due_date, "%Y-%m-%d").date() if due_date != "N/A" else None
+                        owner_name = assigned_to.get("name", "N/A")
+                        license_number = custom_fields_dict.get("Mining License Number", "N/A")
+                        divisional_secretary = custom_fields_dict.get("Divisional Secretary Division", "N/A")
+                        location = custom_fields_dict.get("Name of village ", "N/A")
+                        start_date = issue.get("start_date", "N/A")
 
-                if due_date_obj and (current_date > due_date_obj or remaining_cubes <= 0):
-                    status = "Expired"
-                else:
-                    status = "Active"
+                        remaining_str = custom_fields_dict.get("Remaining", "0")
+                        try:
+                            remaining_cubes = int(remaining_str) if remaining_str.strip() else 0
+                        except ValueError:
+                            remaining_cubes = 0
 
-                # Append formatted issue data
-                relevant_issues.append({
-                    "License Number": license_number,
-                    "Divisional Secretary Division": divisional_secretary,
-                    "Owner Name": owner_name,
-                    "Location": location,
-                    "Start Date": start_date,
-                    "Due Date": due_date,
-                    "Remaining Cubes": remaining_cubes,
-                    "Status": status,
-                    "Royalty": royalty
-                })
+                        royalty = custom_fields_dict.get("Royalty", "N/A")
 
-            # Return the relevant issue data
-            return relevant_issues, None  # Returning filtered issues and no error
+                        relevant_issues.append({
+                            "License Number": license_number,
+                            "Divisional Secretary Division": divisional_secretary,
+                            "Owner Name": owner_name,
+                            "Location": location,
+                            "Start Date": start_date,
+                            "Due Date": due_date,
+                            "Remaining Cubes": remaining_cubes,
+                            "Royalty": royalty
+                        })
+
+            return relevant_issues, None
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+
 
     @staticmethod
     def create_tpl(data, token):
