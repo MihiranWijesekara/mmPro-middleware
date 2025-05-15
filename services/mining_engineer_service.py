@@ -723,3 +723,45 @@ class MiningEnginerService:
         except Exception as e:
             return {"error": f"Server error: {str(e)}"}         
         
+
+    @staticmethod
+    def set_license_hold(issue_id, reason_for_hold, token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return False, "Invalid or missing API key in token"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            # 1. Get the "Hold" status ID (assuming fixed or fetch dynamically)
+            # You can hardcode the Hold status ID if fixed, here example 39 as per your data
+            hold_status_id = 39
+
+            # 2. Update the issue status to "Hold" and set the "Reason For Hold" custom field
+            update_payload = {
+                "issue": {
+                    "status_id": hold_status_id,
+                    "custom_fields": [
+                        {
+                            "id":106,
+                            "value": reason_for_hold
+                        }
+                    ]
+                }
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                json=update_payload,
+                headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code not in [200, 204]:
+                return False, f"Failed to update issue: {response.status_code} - {response.text}"
+
+            return True, None
+
+        except Exception as e:
+            return False, f"Server error: {str(e)}"
