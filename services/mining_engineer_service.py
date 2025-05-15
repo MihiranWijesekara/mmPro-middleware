@@ -83,28 +83,40 @@ class MiningEnginerService:
                 "X-Redmine-API-Key": API_KEY
             }
 
-            # Make the Redmine request
-            limit = LimitUtils.get_limit()
-            response = requests.get(
-                f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json?offset=0&limit={limit}",
-                params=params,
-                headers=headers
-            )
+            # Pagination variables
+            offset = 0
+            limit = 100  # Redmine default/max is usually 100
+            all_issues = []
 
-            # Check if the request was successful
-            if response.status_code != 200:
-                error_msg = f"Redmine API error: {response.status_code}"
-                if response.text:
-                    error_msg += f" - {response.text[:200]}"  # Truncate long error messages
-                return None, error_msg
+            while True:
+                paged_params = params.copy()
+                paged_params.update({"offset": offset, "limit": limit})
 
-            data = response.json()
-            issues = data.get("issues", [])
+                response = requests.get(
+                    f"{REDMINE_URL}/projects/mmpro-gsmb/issues.json",
+                    params=paged_params,
+                    headers=headers
+                )
+
+                if response.status_code != 200:
+                    error_msg = f"Redmine API error: {response.status_code}"
+                    if response.text:
+                        error_msg += f" - {response.text[:200]}"
+                    return None, error_msg
+
+                data = response.json()
+                issues = data.get("issues", [])
+                all_issues.extend(issues)
+
+                if len(issues) < limit:
+                    break  # No more pages
+
+                offset += limit
 
             # Filter issues based on status_id
-            valid_status_ids = {26, 31, 32,6}
+            valid_status_ids = {26, 31, 32, 6}
             processed_issues = []
-            for issue in issues:
+            for issue in all_issues:
                 status_id = issue.get("status", {}).get("id")
                 if status_id not in valid_status_ids:
                     continue
@@ -121,19 +133,19 @@ class MiningEnginerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name"),
-                    "exploration_license_no": custom_fields.get(19),  # ID for "Exploration Licence No"
-                    "Land_Name": custom_fields.get(28),  # ID for "Land Name(Licence Details)"
-                    "Land_owner_name": custom_fields.get(29),  # ID for "Land owner name"
-                    "Name_of_village": custom_fields.get(30),  # ID for "Name of village"
-                    "Grama_Niladhari": custom_fields.get(31),  # ID for "Grama Niladhari Division"
-                    "Divisional_Secretary_Division": custom_fields.get(32),  # ID for "Divisional Secretary Division"
-                    "administrative_district": custom_fields.get(33),  # ID for "Administrative District"
-                    "Capacity": custom_fields.get(34),  # ID for "Capacity"
-                    "Mobile_Numbe": custom_fields.get(66),  # ID for "Mobile Number"
-                    "Google_location": custom_fields.get(92),  # ID for "Google location"
-                    "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),  # ID for "Detailed Mine Restoration Plan"
-                    "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),  # ID for "Payment Receipt"
-                    "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),  # ID for "Deed and Survey Plan"
+                    "exploration_license_no": custom_fields.get(19),
+                    "Land_Name": custom_fields.get(28),
+                    "Land_owner_name": custom_fields.get(29),
+                    "Name_of_village": custom_fields.get(30),
+                    "Grama_Niladhari": custom_fields.get(31),
+                    "Divisional_Secretary_Division": custom_fields.get(32),
+                    "administrative_district": custom_fields.get(33),
+                    "Capacity": custom_fields.get(34),
+                    "Mobile_Numbe": custom_fields.get(66),
+                    "Google_location": custom_fields.get(92),
+                    "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),
+                    "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),
+                    "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),
                     "mining_number": attachment_urls.get("Mining License Number") or custom_fields.get(101),
                 })
 
