@@ -10,6 +10,7 @@ from utils.MLOUtils import MLOUtils
 from flask import request
 from utils.limit_utils import LimitUtils
 from werkzeug.utils import secure_filename
+import time
 
 load_dotenv()
 
@@ -560,7 +561,7 @@ class MLOwnerService:
             def geocode_location(city_name): 
                 url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json"
                 headers = {
-                    "User-Agent": "YourAppName/1.0 (your.email@example.com)"  # <-- important for Nominatim usage policy
+                    "User-Agent": "MiningLicenseTPL/1.0 (it-support@miningcompany.com)"  # <-- important for Nominatim usage policy
                 }
                 response_first = requests.get(url, headers=headers, timeout=1)
                 
@@ -581,6 +582,7 @@ class MLOwnerService:
 
             # Geocode both cities
             coord1 = geocode_location(city1)
+            time.sleep(1)
             coord2 = geocode_location(city2)
 
 
