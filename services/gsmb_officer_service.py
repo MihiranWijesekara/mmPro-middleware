@@ -555,10 +555,11 @@ class GsmbOfficerService:
             for issue in issues:
                 custom_fields = issue.get("custom_fields", [])
 
-                # Extract Lorry Number and Mobile Number from custom fields
+                # Extract relevant fields
                 lorry_number = None
                 mobile_number = None
                 role = None
+                resolved = None  # ✅ NEW
 
                 for field in custom_fields:
                     if field.get("name") == "Lorry Number":
@@ -567,26 +568,26 @@ class GsmbOfficerService:
                         mobile_number = field.get("value")
                     elif field.get("name") == "Role":
                         role = field.get("value")
-
-
+                    elif field.get("name") == "Resolved":  # ✅ NEW
+                        resolved = field.get("value")
 
                 # 🛠️ Format complaint_date
                 created_on = issue.get("created_on")
                 complaint_date = None
                 if created_on:
                     try:
-                        # Parse ISO datetime and format it
                         dt = datetime.strptime(created_on, "%Y-%m-%dT%H:%M:%SZ")
-                        complaint_date = dt.strftime("%Y-%m-%d %H:%M:%S")  # 👈 this adds the space
+                        complaint_date = dt.strftime("%Y-%m-%d %H:%M:%S")
                     except Exception as e:
-                        complaint_date = created_on  # fallback if parsing fails
+                        complaint_date = created_on
 
                 formatted_complaint = {
-                    "id": issue.get("id"), 
+                    "id": issue.get("id"),
                     "lorry_number": lorry_number,
                     "mobile_number": mobile_number,
                     "complaint_date": complaint_date,
                     "role": role,
+                    "resolved": resolved  # ✅ Add to response
                 }
                 formatted_complaints.append(formatted_complaint)
 
@@ -594,6 +595,7 @@ class GsmbOfficerService:
 
         except Exception as e:
             return None, str(e)
+
 
 
     # @staticmethod
