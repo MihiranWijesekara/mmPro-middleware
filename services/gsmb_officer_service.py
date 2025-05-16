@@ -407,6 +407,7 @@ class GsmbOfficerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "assigned_to": assigned_to.get("name"),
+                    "assigned_to_id": assigned_to.get("id"),
                     "created_on": issue.get("created_on"),
 
                     # From custom field map
