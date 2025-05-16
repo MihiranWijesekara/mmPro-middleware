@@ -1241,3 +1241,44 @@ class GsmbOfficerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def mark_complaint_resolved(token, issue_id):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            # Prepare the custom field update payload
+            update_payload = {
+                "issue": {
+                    "custom_fields": [
+                        {
+                            "id": 107,  # Custom field ID for "Resolved"
+                            "value": "1"
+                        }
+                    ]
+                }
+            }
+
+            response = requests.put(
+                f"{REDMINE_URL}/issues/{issue_id}.json",
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps(update_payload)
+            )
+
+            if response.status_code not in (200, 204):
+                return None, f"Failed to update issue: {response.status_code} - {response.text}"
+
+            return True, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
