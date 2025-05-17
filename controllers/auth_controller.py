@@ -610,7 +610,7 @@ def create_issue():
 
 @auth_bp.route('/test', methods=['GET'])
 def auth_():
-    return jsonify({"error": "Google token is required"}), 200
+    return jsonify({"error": "required"}), 200
     
 
 
