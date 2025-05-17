@@ -1,0 +1,36 @@
+name: Deploy Middleware
+
+on:
+  push:
+    branches: [ main ]  # Trigger on pushes to main branch
+    paths:
+      - 'middleware/**'  # Only run when middleware files change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Linux runner with rsync preinstalled
+
+    steps:
+      # Step 1: Checkout your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Load SSH key
+      - name: Add SSH Key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 3: Sync files using rsync
+      - name: Deploy files
+        run: |
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" \
+            ./middleware/ insaf@${{ secrets.SERVER_IP }}:/opt/mmPro-middleware/middleware/
+
+      # Step 4: Restart Gunicorn
+      - name: Restart service
+        run: |
+          ssh -o StrictHostKeyChecking=no insaf@${{ secrets.SERVER_IP }} \
+            "cd /opt/mmPro-middleware && \
+             pkill -HUP gunicorn || \
+             /opt/mmPro-middleware/venv/bin/gunicorn --bind 0.0.0.0:5000 app:app --workers 4 --daemon"
