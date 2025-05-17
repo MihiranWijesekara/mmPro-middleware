@@ -610,7 +610,7 @@ def create_issue():
 
 @auth_bp.route('/test', methods=['GET'])
 def auth_():
-    return jsonify({"success": "required"}), 200
+    return jsonify({"success": "require"}), 200
     
 
 
