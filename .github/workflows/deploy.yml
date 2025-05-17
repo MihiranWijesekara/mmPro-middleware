@@ -25,6 +25,7 @@ jobs:
       - name: Deploy Files
         run: |
           rsync -avz \
+          -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='.env' \
