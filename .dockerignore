@@ -1,7 +1,6 @@
 __pycache__/
 .git/
 .github/
-.env
 *.pyc
 *.pyo
 *.pyd

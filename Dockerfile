@@ -6,7 +6,7 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev && \
     adduser -D appuser && \
     mkdir -p /app /app/otp_cache && \
     chown -R appuser:appuser /app && \
-    chmod -R 755 /app/otp_cache
+    chmod -R 777 /app/otp_cache  # Full permissions for the cache directory
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
@@ -25,6 +25,7 @@ RUN pip install --user -r requirements.txt
 FROM base as final
 COPY --from=builder /home/appuser/.local /home/appuser/.local
 COPY . .
+COPY .env ./
 
 # Environment configuration
 ENV ENVIRONMENT=development \
