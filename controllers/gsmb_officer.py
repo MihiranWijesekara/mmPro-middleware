@@ -518,15 +518,9 @@ def reject_physical_document():
         if not token:
             return jsonify({"error": "Authorization token is missing"}), 400
 
-        # Extract form-data
-        comments = request.form.get('comments')
         mining_request_id = request.form.get('mining_request_id')
 
-        if not comments or not mining_request_id:
-            return jsonify({"error": "Missing comments or mining_request_id"}), 400
-
         data = {
-            "comments": comments,
             "mining_request_id": mining_request_id
         }
 
