@@ -631,10 +631,11 @@ def approve_license():
 
         data = request.get_json()
         issue_id = data.get('issue_id')
-        new_status_id = data.get('new_status_id')
+        # Use default value 7 if not provided
+        new_status_id = data.get('new_status_id', 7)
 
-        if not all([issue_id, new_status_id]):
-            return jsonify({"error": "Missing required parameters"}), 400
+        if not issue_id:
+            return jsonify({"error": "Missing required parameter: issue_id"}), 400
 
         result = GsmbOfficerService.approve_mining_license(
             token=token,
@@ -645,7 +646,6 @@ def approve_license():
         # Handle response
         if not result.get('success'):
             return jsonify({"error": result.get('message', 'Approval failed')}), 500
-
 
         return jsonify({"success": True}), 200
 
