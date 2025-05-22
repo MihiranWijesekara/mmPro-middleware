@@ -83,6 +83,8 @@ def add_new_license():
     
 
            # Fetch a single license by ID
+
+
 @gsmb_officer_bp.route('/get-license/<int:licenseId>', methods=['GET'])
 @check_token
 @role_required(['GSMBOfficer'])
@@ -107,6 +109,8 @@ def get_license_details(licenseId):
 
 
            # Update a license by ID
+
+
 @gsmb_officer_bp.route('/update-license/<int:licenseId>', methods=['PUT'])
 @check_token
 @role_required(['GSMBOfficer'])
@@ -704,6 +708,28 @@ def mark_complaint_resolved(issue_id):
             return jsonify({"error": error}), 500
 
         return jsonify({"success": True, "message": "Complaint marked as resolved"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
+@gsmb_officer_bp.route('/get-mining-license-request', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_mining_license_request():
+    try:
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        summary_data, error = GsmbOfficerService.get_mining_license_request(token)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": summary_data}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
