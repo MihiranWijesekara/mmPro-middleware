@@ -1371,5 +1371,77 @@ class MLOwnerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+        
+    @staticmethod
+    def update_royalty_field(token, issue_id, royalty_amount):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return False, "Invalid or missing API key in token"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return False, "Environment variable 'REDMINE_URL' is not set"
+
+            issue_url = f"{REDMINE_URL}/issues/{issue_id}.json"
+
+            # Step 1: Fetch current issue to read existing royalty value
+            get_response = requests.get(
+                issue_url,
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                }
+            )
+
+            if get_response.status_code != 200:
+                return False, f"Failed to fetch issue: {get_response.status_code} - {get_response.text}"
+
+            issue_data = get_response.json().get("issue", {})
+            custom_fields = issue_data.get("custom_fields", [])
+
+            # Find existing royalty value
+            existing_royalty = 0
+            for field in custom_fields:
+                if field.get("id") == 18:  # Royalty field ID
+                    try:
+                        existing_royalty = int(field.get("value", 0)) if field.get("value") else 0
+                    except ValueError:
+                        existing_royalty = 0
+                    break
+
+            # Step 2: Add new royalty to existing as integer
+            new_total_royalty = existing_royalty + int(royalty_amount)
+
+            # Step 3: Update the issue with new total
+            payload = {
+                "issue": {
+                    "custom_fields": [
+                        {
+                            "id": 18,
+                            "value": str(new_total_royalty)
+                        }
+                    ]
+                }
+            }
+
+            update_response = requests.put(
+                issue_url,
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                },
+                json=payload
+            )
+
+            if update_response.status_code != 204:
+                return False, f"Failed to update issue: {update_response.status_code} - {update_response.text}"
+
+            return True, None
+
+        except Exception as e:
+            return False, f"Server error: {str(e)}"
+
+
 
 

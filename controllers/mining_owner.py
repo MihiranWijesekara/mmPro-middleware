@@ -158,8 +158,12 @@ def ml_detail():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-        
+
+
+
             # Put route for /update-ML
+
+
 @mining_owner_bp.route('/user-detail/<int:user_id>', methods=['GET'])
 @check_token
 @role_required(['MLOwner'])
@@ -333,6 +337,29 @@ def get_mining_license_refined():
         return jsonify({"error": str(e)}), 500
 
 
+@mining_owner_bp.route('/update-royalty', methods=['POST'])
+@check_token
+@role_required(['MLOwner'])
+def update_royalty_amount():
+    try:
+        data = request.json
+        token = request.headers.get('Authorization')
+
+        issue_id = data.get("issue_id")
+        royalty_amount = data.get("royalty_amount")
+
+        if not issue_id or royalty_amount is None:
+            return jsonify({"error": "Missing 'issue_id' or 'royalty_amount'"}), 400
+
+        success, error = MLOwnerService.update_royalty_field(token, issue_id, royalty_amount)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "message": "Royalty updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
