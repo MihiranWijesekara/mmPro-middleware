@@ -1313,3 +1313,63 @@ class MLOwnerService:
 
         except Exception as e:
             return None, f"Server error: {str(e)}"
+
+    @staticmethod
+    def get_mining_license_summary(token):
+        try:
+            user_api_key = JWTUtils.get_api_key_from_token(token)
+            if not user_api_key:
+                return None, "Invalid or missing API key in the token"
+
+            user_response = JWTUtils.decode_jwt_and_get_user_id(token)
+            user_id = user_response.get("user_id")
+            if not user_id:
+                return None, "Failed to extract user ID"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "Environment variable 'REDMINE_URL' is not set"
+
+            ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=!7"
+            response = requests.get(
+                ml_issues_url,
+                headers={
+                    "X-Redmine-API-Key": user_api_key,
+                    "Content-Type": "application/json"
+                }
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
+
+            issues = response.json().get("issues", [])
+            summary_list = []
+
+            for issue in issues:
+                assigned_to = issue.get("assigned_to", {})
+                assigned_to_id = assigned_to.get("id")
+
+                # Filter: only issues assigned to current user
+                if assigned_to_id != user_id:
+                    continue
+
+                custom_fields = issue.get("custom_fields", [])
+
+                summary = {
+                    "id": issue.get("id"),
+                    "subject": issue.get("subject"),
+                    "assigned_to": assigned_to.get("name"),
+                    "mobile": MLOwnerService.get_custom_field_value(custom_fields, "Mobile Number"),
+                    "district": MLOwnerService.get_custom_field_value(custom_fields, "Administrative District"),
+                    "date_created": issue.get("created_on"),
+                    "status": issue.get("status", {}).get("name"),
+                }
+
+                summary_list.append(summary)
+
+            return summary_list, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+
+
