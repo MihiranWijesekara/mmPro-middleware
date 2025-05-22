@@ -407,11 +407,9 @@ class GsmbOfficerService:
                     "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
                     "assigned_to": assigned_to.get("name"),
-                    "assigned_to_id": assigned_to.get("id"),
-                    "created_on": issue.get("created_on"),
+                    "created_on": datetime.strptime(issue.get("created_on"), "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d") if issue.get("created_on") else None,
 
                     # From custom field map
-                    "exploration_licence_no": custom_field_map.get("Exploration Licence No"),
                     "land_name": custom_field_map.get("Land Name(Licence Details)"),
                     "land_owner_name": custom_field_map.get("Land owner name"),
                     "village_name": custom_field_map.get("Name of village "),
@@ -420,16 +418,6 @@ class GsmbOfficerService:
                     "administrative_district": custom_field_map.get("Administrative District"),
                     "google_location": custom_field_map.get("Google location "),
                     "mobile_number": custom_field_map.get("Mobile Number"),
-
-                    # From attachment URLs
-
-                    # "assigned_to_details": {
-                    #     "id": assigned_to_details.get("id"),
-                    #     "name": f"{assigned_to_details.get('firstname', '')} {assigned_to_details.get('lastname', '')}".strip(),
-                    #     "email": assigned_to_details.get("mail"),
-                    #     "custom_fields": assigned_to_details.get("custom_fields", [])
-                    # } if assigned_to_details else None,
-                    "exploration_licence_no": GsmbOfficerService.get_custom_field_value(custom_fields, "Exploration Licence No"),
                     "land_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land Name(Licence Details)"),
                     "land_owner_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Land owner name"),
                     "village_name": GsmbOfficerService.get_custom_field_value(custom_fields, "Name of village "),
@@ -438,6 +426,7 @@ class GsmbOfficerService:
                     "administrative_district": GsmbOfficerService.get_custom_field_value(custom_fields, "Administrative District"),
                     "google_location": GsmbOfficerService.get_custom_field_value(custom_fields, "Google location "),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mobile Number"),
+                    "mining_license_number": GsmbOfficerService.get_custom_field_value(custom_fields, "Mining License Number"),
                     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
                     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
                     "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
