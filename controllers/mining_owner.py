@@ -367,21 +367,19 @@ def get_mining_license_refined():
 @mining_owner_bp.route('/update-royalty', methods=['POST'])
 def handle_payhere_ipn():
     try:
-        # PayHere sends data as form-urlencoded
+        # 1. Get PayHere IPN data (form-urlencoded)
         data = request.form
-        
-        # 1. Verify the payment signature
-        merchant_secret = os.getenv("PAYHERE_MERCHANT_SECRET", "MzQ0NTgxNDE2MjMxMzEyNzQ2MzAwNDM1NDE3MjQ5NjA3NzU1OTU5")  # Sandbox secret
+
+        # 2. Required fields
         required_fields = [
-            'merchant_id', 'order_id', 'payhere_amount', 
+            'merchant_id', 'order_id', 'payhere_amount',
             'payhere_currency', 'status_code', 'md5sig'
         ]
-        
-        # Validate required fields
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Recalculate the signature
+        # 3. Verify PayHere signature
+        merchant_secret = os.getenv("PAYHERE_MERCHANT_SECRET", "MzQ0NTgxNDE2MjMxMzEyNzQ2MzAwNDM1NDE3MjQ5NjA3NzU1OTU5")
         hashed_secret = md5(merchant_secret.encode()).hexdigest().upper()
         base_string = (
             f"{data['merchant_id']}{data['order_id']}{data['payhere_amount']}"
@@ -389,52 +387,53 @@ def handle_payhere_ipn():
         )
         calculated_sig = md5(base_string.encode()).hexdigest().upper()
 
-        # Signature verification
         if calculated_sig != data['md5sig']:
             return jsonify({"error": "Invalid signature"}), 403
 
-        # 2. Only process successful payments (status_code=2)
+        # 4. Only process successful payments
         if data['status_code'] != "2":
             return jsonify({"message": f"Ignoring non-successful payment status: {data['status_code']}"}), 200
 
-        # 3. Extract custom data (issue_id passed as custom_1)
+        # 5. Extract issue ID from custom_1
         issue_id = data.get('custom_1')
         if not issue_id:
-            return jsonify({"error": "Missing issue_id in custom field"}), 400
+            return jsonify({"error": "Missing issue_id in custom_1"}), 400
 
-        # 4. Update Redmine royalty
+        # 6. Redmine credentials
         redmine_url = os.getenv("REDMINE_URL")
-        api_key = os.getenv("REDMINE_API_KEY")  # Use a service account API key
-        
+        api_key = os.getenv("REDMINE_API_KEY")
         if not redmine_url or not api_key:
             return jsonify({"error": "Server configuration error"}), 500
 
-        # Get current royalty value
         issue_url = f"{redmine_url}/issues/{issue_id}.json"
         headers = {
             "X-Redmine-API-Key": api_key,
             "Content-Type": "application/json"
         }
 
-        # Fetch current issue
+        # 7. Fetch current issue
         response = requests.get(issue_url, headers=headers)
         if response.status_code != 200:
             return jsonify({"error": f"Failed to fetch issue: {response.text}"}), 400
 
-        # Find existing royalty value (assuming field ID 18)
-        current_royalty = 0
+        current_royalty = 0.0
         for field in response.json().get('issue', {}).get('custom_fields', []):
-            if field.get('id') == 18 and field.get('value'):
+            if field.get('id') == 18:  # Royalty field ID
                 try:
-                    current_royalty = float(field['value'])
-                except ValueError:
-                    current_royalty = 0
+                    current_royalty = float(field.get('value', 0))
+                except (ValueError, TypeError):
+                    current_royalty = 0.0
                 break
 
-        # Calculate new royalty
-        new_royalty = current_royalty + float(data['payhere_amount'])
+        # 8. Add royalty
+        try:
+            amount = float(data['payhere_amount'])
+        except ValueError:
+            return jsonify({"error": "Invalid amount format"}), 400
 
-        # Update Redmine
+        new_royalty = current_royalty + amount
+
+        # 9. Update Redmine issue
         update_response = requests.put(
             issue_url,
             headers=headers,
@@ -442,7 +441,7 @@ def handle_payhere_ipn():
                 "issue": {
                     "custom_fields": [{
                         "id": 18,
-                        "value": f"{new_royalty:.2f}"
+                        "value": str(round(new_royalty, 2))  # Store as string
                     }]
                 }
             }
@@ -451,8 +450,8 @@ def handle_payhere_ipn():
         if update_response.status_code != 204:
             return jsonify({"error": f"Failed to update Redmine: {update_response.text}"}), 400
 
-        # 5. Log successful processing
-        print(f"Royalty updated for issue {issue_id}. New amount: {new_royalty:.2f}")
+        # 10. Success response
+        print(f"✅ Royalty updated for issue {issue_id}. New amount: {new_royalty:.2f}")
         return jsonify({
             "success": True,
             "message": f"Royalty updated to LKR {new_royalty:.2f}",
@@ -501,7 +500,7 @@ def create_payhere_session():
             "merchant_id": merchant_id,
             "return_url": "http://localhost:3000/payment-success",
             "cancel_url": "http://localhost:3000/payment-canceled",
-            "notify_url": "https://cfed-2402-4000-23d0-126e-4063-b6d2-1c97-6ce3.ngrok-free.app/notify",
+            "notify_url": "https://f1a5-2402-4000-23d0-126e-6470-496-7a72-faac.ngrok-free.app/notify",
             "order_id": order_id,
             "items": f"Mining Royalty #{issue_id}",
             "amount": f"{amount_float:.2f}",
