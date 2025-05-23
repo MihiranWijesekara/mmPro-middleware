@@ -379,7 +379,7 @@ def handle_payhere_ipn():
             return jsonify({"error": "Missing required fields"}), 400
 
         # 3. Verify PayHere signature
-        merchant_secret = "Mzk0NTYzMTQ2NjE3MTc0Njc0NDE3NTAyMTc5MDczNzM3NjkxNDMz"
+        merchant_secret = os.getenv("MERCHANT_SECRET")
         hashed_secret = md5(merchant_secret.encode()).hexdigest().upper()
         base_string = (
             f"{data['merchant_id']}{data['order_id']}{data['payhere_amount']}"
@@ -416,24 +416,25 @@ def handle_payhere_ipn():
         if response.status_code != 200:
             return jsonify({"error": f"Failed to fetch issue: {response.text}"}), 400
 
-        current_royalty = 0.0
+        current_royalty = 0
         for field in response.json().get('issue', {}).get('custom_fields', []):
             if field.get('id') == 18:  # Royalty field ID
                 try:
-                    current_royalty = float(field.get('value', 0))
+                    # Convert to float first, then to int to handle strings with decimals
+                    current_royalty = int(float(field.get('value', 0)))
                 except (ValueError, TypeError):
-                    current_royalty = 0.0
+                    current_royalty = 0
                 break
 
-        # 8. Add royalty
+        # 8. Add royalty (convert amount to integer)
         try:
-            amount = float(data['payhere_amount'])
+            amount = int(round(float(data['payhere_amount'])))  # Convert to integer
         except ValueError:
             return jsonify({"error": "Invalid amount format"}), 400
 
         new_royalty = current_royalty + amount
 
-        # 9. Update Redmine issue
+        # 9. Update Redmine issue with integer value
         update_response = requests.put(
             issue_url,
             headers=headers,
@@ -441,7 +442,7 @@ def handle_payhere_ipn():
                 "issue": {
                     "custom_fields": [{
                         "id": 18,
-                        "value": str(round(new_royalty, 2))  # Store as string
+                        "value": str(new_royalty)  # Store as string but without decimals
                     }]
                 }
             }
@@ -451,10 +452,10 @@ def handle_payhere_ipn():
             return jsonify({"error": f"Failed to update Redmine: {update_response.text}"}), 400
 
         # 10. Success response
-        print(f"✅ Royalty updated for issue {issue_id}. New amount: {new_royalty:.2f}")
+        print(f"✅ Royalty updated for issue {issue_id}. New amount: {new_royalty}")
         return jsonify({
             "success": True,
-            "message": f"Royalty updated to LKR {new_royalty:.2f}",
+            "message": f"Royalty updated to LKR {new_royalty}",
             "issue_id": issue_id,
             "payment_id": data.get('payment_id')
         }), 200
@@ -466,11 +467,14 @@ def handle_payhere_ipn():
         }), 500
     
 @mining_owner_bp.route('/create-payhere-session', methods=['POST'])
+@check_token
+@role_required(['MLOwner'])
 def create_payhere_session():
     try:
         data = request.json
         issue_id = data.get('issue_id')
         amount = data.get('amount')
+        license_number = data.get('license_number')
 
         if not issue_id or not amount:
             return jsonify({"error": "Missing issue_id or amount"}), 400
@@ -482,11 +486,8 @@ def create_payhere_session():
         except ValueError:
             return jsonify({"error": "Invalid amount format"}), 400
 
-        # Sandbox credentials (replace with live in production)
-        merchant_id = "1230529"  # PayHere sandbox merchant ID
-        merchant_secret = "Mzk0NTYzMTQ2NjE3MTc0Njc0NDE3NTAyMTc5MDczNzM3NjkxNDMz"  # Sandbox secret
-
-        # Generate unique order ID
+        merchant_id = os.getenv("MERCHANT_ID")  # PayHere sandbox merchant ID
+        merchant_secret = os.getenv("MERCHANT_SECRET")  # Sandbox secret
         order_id = f"ROYALTY_{issue_id}_{int(time.time())}"
 
         # Generate correct PayHere hash
@@ -500,14 +501,13 @@ def create_payhere_session():
             "merchant_id": merchant_id,
             "return_url": "http://localhost:3000/payment-success",
             "cancel_url": "http://localhost:3000/payment-canceled",
-            "notify_url": "https://slt.aasait.lk/mining-owner/update-royalty",
+            "notify_url": "http://slt.aasait.lk/mining-owner/update-royalty",
             "order_id": order_id,
-            "items": f"Mining Royalty #{issue_id}",
+            "items": f"Mining Royalty for license {license_number}",
             "amount": f"{amount_float:.2f}",
             "currency": "LKR",
             "custom_1": issue_id,
             "hash": generate_payhere_hash(),
-            # Required customer details (can be dynamic)
             "first_name": "Mining",
             "last_name": "Operator",
             "email": "mining@example.com",
