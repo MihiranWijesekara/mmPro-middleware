@@ -379,7 +379,7 @@ def handle_payhere_ipn():
             return jsonify({"error": "Missing required fields"}), 400
 
         # 3. Verify PayHere signature
-        merchant_secret = os.getenv("PAYHERE_MERCHANT_SECRET", "MzQ0NTgxNDE2MjMxMzEyNzQ2MzAwNDM1NDE3MjQ5NjA3NzU1OTU5")
+        merchant_secret = os.getenv("PAYHERE_MERCHANT_SECRET", "Mzk0NTYzMTQ2NjE3MTc0Njc0NDE3NTAyMTc5MDczNzM3NjkxNDMz")
         hashed_secret = md5(merchant_secret.encode()).hexdigest().upper()
         base_string = (
             f"{data['merchant_id']}{data['order_id']}{data['payhere_amount']}"
@@ -500,7 +500,7 @@ def create_payhere_session():
             "merchant_id": merchant_id,
             "return_url": "http://localhost:3000/payment-success",
             "cancel_url": "http://localhost:3000/payment-canceled",
-            "notify_url": "https://f1a5-2402-4000-23d0-126e-6470-496-7a72-faac.ngrok-free.app/notify",
+            "notify_url": "https://slt.aasait.lk/mining-owner/update-royalty",
             "order_id": order_id,
             "items": f"Mining Royalty #{issue_id}",
             "amount": f"{amount_float:.2f}",
