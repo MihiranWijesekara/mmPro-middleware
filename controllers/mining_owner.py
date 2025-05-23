@@ -379,7 +379,7 @@ def handle_payhere_ipn():
             return jsonify({"error": "Missing required fields"}), 400
 
         # 3. Verify PayHere signature
-        merchant_secret = os.getenv("PAYHERE_MERCHANT_SECRET", "Mzk0NTYzMTQ2NjE3MTc0Njc0NDE3NTAyMTc5MDczNzM3NjkxNDMz")
+        merchant_secret = "Mzk0NTYzMTQ2NjE3MTc0Njc0NDE3NTAyMTc5MDczNzM3NjkxNDMz"
         hashed_secret = md5(merchant_secret.encode()).hexdigest().upper()
         base_string = (
             f"{data['merchant_id']}{data['order_id']}{data['payhere_amount']}"
@@ -401,7 +401,7 @@ def handle_payhere_ipn():
 
         # 6. Redmine credentials
         redmine_url = os.getenv("REDMINE_URL")
-        api_key = os.getenv("REDMINE_API_KEY")
+        api_key = os.getenv("REDMINE_ADMIN_API_KEY")
         if not redmine_url or not api_key:
             return jsonify({"error": "Server configuration error"}), 500
 
