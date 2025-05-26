@@ -377,6 +377,7 @@ class MLOwnerService:
                         royalty = custom_fields_dict.get("Royalty", "N/A")
 
                         relevant_issues.append({
+                            "Issue ID": issue.get("id", "N/A"),
                             "License Number": license_number,
                             "Divisional Secretary Division": divisional_secretary,
                             "Owner Name": owner_name,
@@ -386,6 +387,7 @@ class MLOwnerService:
                             "Remaining Cubes": remaining_cubes,
                             "Royalty": royalty
                         })
+
 
             return relevant_issues, None
 
