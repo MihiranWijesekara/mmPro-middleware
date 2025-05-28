@@ -206,7 +206,7 @@ class AuthService:
             return None, f"Error: {str(e)}"
         
     @staticmethod
-    def initiate_password_reset(email):
+    def initiate_password_reset(email,redirect_base_url=None):
         """
         Initiates the password reset process.
         - Checks if the email exists.
@@ -229,7 +229,11 @@ class AuthService:
         cache.set(cache_key, email, expires_in)
 
         # Send the reset link to the user's email
-        reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
+        if redirect_base_url:
+            reset_link = f"{redirect_base_url}?token={reset_token}"
+        else:
+
+            reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
         AuthService.send_reset_email(email, reset_link)
 
         return {'message': 'Password reset initiated'} 

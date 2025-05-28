@@ -348,28 +348,6 @@ def get_mining_license_by_id(issue_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@gsmb_officer_bp.route('/get-mining-license-requests', methods=['GET'])
-@check_token
-@role_required(['GSMBOfficer'])
-def get_mining_license_requests():
-    try:
-        token = request.headers.get('Authorization')
-
-        if not token:
-            return jsonify({"error": "Authorization token is missing"}), 400
-
-        mining_licenses, error = GsmbOfficerService.get_mining_license_requests(token)
-
-        if error:
-            return jsonify({"error": error}), 500
-
-        return jsonify({"success": True, "data": mining_licenses}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @gsmb_officer_bp.route('/get-complaints', methods=['GET'])
 @check_token
 @role_required(['GSMBOfficer'])
@@ -724,6 +702,26 @@ def get_mining_license_request():
             return jsonify({"error": error}), 500
 
         return jsonify({"success": True, "data": summary_data}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@gsmb_officer_bp.route('/get-miningRequest-view-button/<int:issue_id>', methods=['GET'])
+@check_token
+@role_required(['GSMBOfficer'])
+def get_miningRequest_view_button(issue_id):
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Authorization token is missing"}), 400
+
+        # Fetch issue details
+        mining_license, error = GsmbOfficerService.get_miningRequest_view_button(token, issue_id)
+
+        if error:
+            return jsonify({"error": error}), 500
+
+        return jsonify({"success": True, "data": mining_license}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

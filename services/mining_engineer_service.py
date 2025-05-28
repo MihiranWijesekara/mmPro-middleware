@@ -935,6 +935,8 @@ class MiningEnginerService:
                     "Capacity": custom_fields.get(34),
                     "Mobile_Numbe": custom_fields.get(66),
                     "Google_location": custom_fields.get(92),
+                    "Mining_license_Number": custom_fields.get(101),
+                    "hold": custom_fields.get(106),
                     "Detailed_Plan": attachment_urls.get("Detailed Mine Restoration Plan") or custom_fields.get(72),
                     "Payment_Receipt": attachment_urls.get("Payment Receipt") or custom_fields.get(80),
                     "Deed_Plan": attachment_urls.get("Deed and Survey Plan") or custom_fields.get(90),

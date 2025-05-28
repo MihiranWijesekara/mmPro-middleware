@@ -122,16 +122,18 @@ def forgot_password():
     """
     data = request.get_json()
     email = data.get('email')
+    redirect_base_url = data.get('redirect_base_url')
+   
 
     if not email:
         return jsonify({'message': 'Email is required'}), 400
 
     # Call the AuthService to handle the password reset process
-    result = AuthService.initiate_password_reset(email)
+    result = AuthService.initiate_password_reset(email,redirect_base_url)
 
     if result.get('error'):
         return jsonify({'message': result['error']}), 400
-
+    
     return jsonify({'message': 'If the email exists, a reset link will be sent'}), 200
 
 @auth_bp.route('/reset-password', methods=['POST'])
