@@ -560,3 +560,48 @@ class AuthService:
         else:
             return None, response.json()
         
+    @staticmethod
+    def reset_password_with_email(email, new_password):
+        """
+        Resets the user's password using their email (for OTP-based reset).
+        """
+        if not email:
+            return {'success': False, 'error': 'Email is required'}
+
+        try:
+            users_response = requests.get(
+                f"{REDMINE_URL}/users.json",
+                params={"mail": email},
+                headers={"X-Redmine-API-Key": REDMINE_API_KEY}
+            )
+            users_response.raise_for_status()  # Raise an exception for HTTP errors
+
+            users = users_response.json().get('users', [])
+            if not users:
+                return {'success': False, 'error': 'User not found in Redmine'}
+
+            user_id = users[0]['id']
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to fetch user details: {e}")
+            return {'success': False, 'error': 'Failed to fetch user details from Redmine'}
+
+        # Step 2: Update the user's password
+        update_url = f"{REDMINE_URL}/users/{user_id}.json"
+        headers = {
+            'X-Redmine-API-Key': REDMINE_API_KEY,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'user': {
+                'password': new_password
+            }
+        }
+
+        try:
+            response = requests.put(update_url, headers=headers, json=payload)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            print(f"Password updated successfully for user {email}")
+            return {'success': True}
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to update password: {e}")
+            return {'success': False, 'error': 'Failed to update password in Redmine'}

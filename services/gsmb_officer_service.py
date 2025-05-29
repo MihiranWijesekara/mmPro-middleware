@@ -215,6 +215,82 @@ class GsmbOfficerService:
         except Exception as e:
             return None, f"Server error: {str(e)}"
         
+    # @staticmethod
+    # def get_mining_licenses(token):
+    #     try:
+    #         # 🔑 Extract user's API key from token
+    #         user_api_key = JWTUtils.get_api_key_from_token(token)
+    #         if not user_api_key:
+    #             return None, "Invalid or missing API key in the token"
+
+    #         # 🌐 Get Redmine URL
+    #         REDMINE_URL = os.getenv("REDMINE_URL")
+    #         if not REDMINE_URL:
+    #             return None, "Environment variable 'REDMINE_URL' is not set"
+
+    #         # 🚀 Fetch all ML issues from Redmine
+    #         ml_issues_url = f"{REDMINE_URL}/issues.json?tracker_id=4&project_id=1&status_id=7"
+    #         response = requests.get(
+    #             ml_issues_url,
+    #             headers={"X-Redmine-API-Key": user_api_key, "Content-Type": "application/json"}
+    #         )
+
+    #         if response.status_code != 200:
+    #             return None, f"Failed to fetch ML issues: {response.status_code} - {response.text}"
+
+    #         issues = response.json().get("issues", [])
+    #         formatted_mls = []
+
+    #         for issue in issues:
+    #             issue_id = issue.get("id")
+                
+    #             # Fetching attachments separately
+    #             custom_fields = issue.get("custom_fields", [])  # Extract custom fields
+    #             attachment_urls = GsmbOfficerService.get_attachment_urls(user_api_key, REDMINE_URL, custom_fields)
+
+
+    #             formatted_ml = {
+    #                 "id": issue_id,
+    #                 "subject": issue.get("subject"),
+    #                 "status": issue.get("status", {}).get("name"),
+    #                 "author": issue.get("author", {}).get("name"),
+    #                 "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
+    #                 "start_date": issue.get("start_date"),
+    #                 "due_date": issue.get("due_date"),
+    #                 "exploration_licence_no": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Exploration Licence No"),
+    #                 "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of Applicant OR Company"),
+    #                 "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details)"),
+    #                 "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owner name"),
+    #                 "village_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of village "),
+    #                 "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Grama Niladhari Division"),
+    #                 "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Divisional Secretary Division"),
+    #                 "administrative_district": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Administrative District"),
+    #                 "capacity": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Capacity"),
+    #                 "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
+    #                 "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
+    #                 "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
+    #                 "license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+    #                 "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+    #                 "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
+
+                    
+    #                 # Fetching File URLs from Attachments API
+    #                 "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+    #                 "license_fee_receipt": attachment_urls.get("License fee receipt"),
+    #                 "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+    #                 "professional": attachment_urls.get("Professional"),
+    #                 "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
+    #                 "payment_receipt": attachment_urls.get("Payment Receipt"),
+    #                 "license_boundary_survey": attachment_urls.get("License Boundary Survey")
+    #             }
+
+    #             formatted_mls.append(formatted_ml)
+ 
+    #         return formatted_mls, None
+
+    #     except Exception as e:
+    #         return None, f"Server error: {str(e)}"
+
     @staticmethod
     def get_mining_licenses(token):
         try:
@@ -251,37 +327,37 @@ class GsmbOfficerService:
 
                 formatted_ml = {
                     "id": issue_id,
-                    "subject": issue.get("subject"),
+                    # "subject": issue.get("subject"),
                     "status": issue.get("status", {}).get("name"),
-                    "author": issue.get("author", {}).get("name"),
+                    # "author": issue.get("author", {}).get("name"),
                     "assigned_to": issue.get("assigned_to", {}).get("name") if issue.get("assigned_to") else None,
                     "start_date": issue.get("start_date"),
                     "due_date": issue.get("due_date"),
-                    "exploration_licence_no": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Exploration Licence No"),
-                    "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of Applicant OR Company"),
-                    "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details)"),
-                    "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owner name"),
-                    "village_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of village "),
-                    "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Grama Niladhari Division"),
-                    "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Divisional Secretary Division"),
-                    "administrative_district": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Administrative District"),
+                    # "exploration_licence_no": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Exploration Licence No"),
+                    # "applicant_or_company_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of Applicant OR Company"),
+                    # "land_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land Name(Licence Details)"),
+                    # "land_owner_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Land owner name"),
+                    # "village_name": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Name of village "),
+                    # "grama_niladhari_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Grama Niladhari Division"),
+                    # "divisional_secretary_division": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Divisional Secretary Division"),
+                    # "administrative_district": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Administrative District"),
                     "capacity": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Capacity"),
                     "used": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Used"),
                     "remaining": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Remaining"),
                     "royalty": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Royalty"),
-                    "license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
+                    # "license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     "mining_license_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mining License Number"),
                     "mobile_number": GsmbOfficerService.get_custom_field_value(issue.get("custom_fields", []), "Mobile Number"),
 
                     
                     # Fetching File URLs from Attachments API
-                    "economic_viability_report": attachment_urls.get("Economic Viability Report"),
-                    "license_fee_receipt": attachment_urls.get("License fee receipt"),
-                    "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
-                    "professional": attachment_urls.get("Professional"),
-                    "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
-                    "payment_receipt": attachment_urls.get("Payment Receipt"),
-                    "license_boundary_survey": attachment_urls.get("License Boundary Survey")
+                #     "economic_viability_report": attachment_urls.get("Economic Viability Report"),
+                #     "license_fee_receipt": attachment_urls.get("License fee receipt"),
+                #     "detailed_mine_restoration_plan": attachment_urls.get("Detailed Mine Restoration Plan"),
+                #     "professional": attachment_urls.get("Professional"),
+                #     "deed_and_survey_plan": attachment_urls.get("Deed and Survey Plan"),
+                #     "payment_receipt": attachment_urls.get("Payment Receipt"),
+                #     "license_boundary_survey": attachment_urls.get("License Boundary Survey")
                 }
 
                 formatted_mls.append(formatted_ml)
@@ -1153,6 +1229,70 @@ class GsmbOfficerService:
                 "land_owner_name": custom_field_map.get("Land owner name"),
                 "village_name": custom_field_map.get("Name of village "),
                 "grama_niladhari_division": custom_field_map.get("Grama Niladhari Division"),
+                "divisional_secretary_division": custom_field_map.get("Divisional Secretary Division"),
+                "administrative_district": custom_field_map.get("Administrative District"),
+                "mining_license_number": custom_field_map.get("Mining License Number"),
+                "mobile_number": custom_field_map.get("Mobile Number"),
+                "economic_viability_report": attachments.get("Economic Viability Report"),
+                "license_fee_receipt": attachments.get("License fee receipt"),
+                "detailed_mine_restoration_plan": attachments.get("Detailed Mine Restoration Plan"),
+                "deed_and_survey_plan": attachments.get("Deed and Survey Plan"),
+                "payment_receipt": attachments.get("Payment Receipt"),
+                "license_boundary_survey": attachments.get("License Boundary Survey")
+            }
+
+            return formatted_issue, None
+
+        except Exception as e:
+            return None, f"Server error: {str(e)}"
+        
+
+    @staticmethod
+    def get_miningLicense_view_button(token, issue_id):
+        try:
+            
+            api_key = JWTUtils.get_api_key_from_token(token)
+            if not api_key:
+                return None, "Invalid or missing API key"
+
+            REDMINE_URL = os.getenv("REDMINE_URL")
+            if not REDMINE_URL:
+                return None, "REDMINE_URL environment variable not set"
+
+            issue_url = f"{REDMINE_URL}/issues/{issue_id}.json?include=attachments"
+            response = requests.get(
+                issue_url,
+                headers={"X-Redmine-API-Key": api_key, "Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:
+                return None, f"Failed to fetch issue: {response.status_code} - {response.text}"
+
+            issue = response.json().get("issue")
+            if not issue:
+                return None, "Issue data not found"
+
+            custom_fields = issue.get("custom_fields", [])
+            custom_field_map = {field["name"]: field.get("value") for field in custom_fields}
+
+            attachments = GsmbOfficerService.get_attachment_urls(api_key, REDMINE_URL, custom_fields)
+
+            formatted_issue = {
+                "id": issue.get("id"),
+                "subject": issue.get("subject"),
+                "start_date": issue.get("start_date"),
+                "due_date": issue.get("due_date"),
+                "status": issue.get("status", {}).get("name"),
+                "assigned_to": issue.get("assigned_to", {}).get("name"),
+                "land_name": custom_field_map.get("Land Name(Licence Details)"),
+                "land_owner_name": custom_field_map.get("Land owner name"),
+                "village_name": custom_field_map.get("Name of village "),
+                "grama_niladhari_division": custom_field_map.get("Grama Niladhari Division"),
+                "capacity": custom_field_map.get("Capacity"),
+                "used": custom_field_map.get("Used"),
+                "remaining": custom_field_map.get("Remaining"),
+                "exploration_licence_no": custom_field_map.get("Exploration Licence No"),
+                "royalty": custom_field_map.get("Royalty"),
                 "divisional_secretary_division": custom_field_map.get("Divisional Secretary Division"),
                 "administrative_district": custom_field_map.get("Administrative District"),
                 "mining_license_number": custom_field_map.get("Mining License Number"),
