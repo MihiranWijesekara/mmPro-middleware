@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "mmpro-middleware"
-        DOCKER_REGISTRY = "local"  // we keep it local for now
+        DOCKER_REGISTRY = "local"
     }
 
     stages {
@@ -16,22 +16,24 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t %IMAGE_NAME% .'
+                bat "docker build -t %IMAGE_NAME% ."
             }
         }
 
         stage('Stop Existing Container') {
             steps {
-                bat '''
-                docker stop %IMAGE_NAME% || echo "No running container"
-                docker rm %IMAGE_NAME% || echo "No container to remove"
-                '''
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    bat """
+                    docker stop %IMAGE_NAME%
+                    docker rm %IMAGE_NAME%
+                    """
+                }
             }
         }
 
         stage('Run Docker Container') {
             steps {
-                bat 'docker run -d -p 5000:5000 --name %IMAGE_NAME% %IMAGE_NAME%'
+                bat "docker run -d -p 5000:5000 --name %IMAGE_NAME% %IMAGE_NAME%"
             }
         }
     }
