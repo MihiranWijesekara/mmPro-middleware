@@ -55,13 +55,13 @@ def auth_google():
     if auth_result[0] is None:  # If authentication failed
         return jsonify({"error": auth_result[1]}), 401
 
-    user_id, user_data, user_role, api_key = auth_result  
+    user_id, user_data, user_role = auth_result  
 
     username=f"{user_data.get('firstname')} {user_data.get('lastname')}",
     # Create JWT token using the service
-    jwt_token =  JWTUtils.create_jwt_token(user_id,user_role, api_key)
+    tokens =  JWTUtils.create_jwt_token(user_id,user_role)
 
-    return jsonify({'token': jwt_token, 'role': user_role, 'username':username, 'userId':user_id})
+    return jsonify({'token': tokens['access_token'], 'refresh_token': tokens['refresh_token'],'role': user_role, 'username':username, 'userId':user_id})
 
 @auth_bp.route('/mobile-google-login', methods=['POST'])
 def mobile_auth_google():
@@ -74,10 +74,10 @@ def mobile_auth_google():
     if auth_result[0] is None:
         return jsonify({"error": auth_result[1]}), 401
 
-    user_id, user_data, user_role, api_key = auth_result
+    user_id, user_data, user_role = auth_result
 
     username = f"{user_data.get('firstname')} {user_data.get('lastname')}"
-    jwt_token = JWTUtils.create_jwt_token(user_id, user_role, api_key)
+    jwt_token = JWTUtils.create_jwt_token(user_id, user_role)
 
     return jsonify({'token': jwt_token, 'role': user_role, 'username': username, 'userId': user_id})
 
