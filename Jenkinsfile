@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR = "venv"
-        PYTHON = "python"   // or python3 depending on your system
+        IMAGE_NAME = "mmpro-middleware"
+        DOCKER_REGISTRY = "local"  // we keep it local for now
     }
 
     stages {
@@ -14,30 +14,31 @@ pipeline {
             }
         }
 
-        stage('Setup Python Virtual Environment') {
+        stage('Build Docker Image') {
             steps {
-                bat """
-                    ${PYTHON} -m venv ${VENV_DIR}
-                    call ${VENV_DIR}\\Scripts\\activate
-                    ${PYTHON} -m pip install --upgrade pip
-                    ${PYTHON} -m pip install -r requirements.txt
-                """
+                bat 'docker build -t %IMAGE_NAME% .'
             }
         }
 
-        stage('Run Tests') {
+        stage('Stop Existing Container') {
             steps {
-                bat """
-                    call ${VENV_DIR}\\Scripts\\activate
-                    pytest
-                """
+                bat '''
+                docker stop %IMAGE_NAME% || echo "No running container"
+                docker rm %IMAGE_NAME% || echo "No container to remove"
+                '''
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                bat 'docker run -d -p 5000:5000 --name %IMAGE_NAME% %IMAGE_NAME%'
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build & Test Succeeded!'
+            echo '✅ Build & Deploy Successful!'
         }
         failure {
             echo '❌ Build Failed!'
