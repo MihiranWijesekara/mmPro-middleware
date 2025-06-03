@@ -74,11 +74,11 @@ def test_authenticate_google_token_success():
         ]
     }
     
-    mock_user_details_response = {
-        'user': {
-            'api_key': 'mock_api_key'
-        }
-    }
+    # mock_user_details_response = {
+    #     'user': {
+    #         'api_key': 'mock_api_key'
+    #     }
+    # }
     
     mock_memberships_response = {
         'memberships': [
@@ -98,22 +98,22 @@ def test_authenticate_google_token_success():
             
             mock_get.side_effect = [
                 MagicMock(status_code=200, json=lambda: mock_users_response),
-                MagicMock(status_code=200, json=lambda: mock_user_details_response),
+                # MagicMock(status_code=200, json=lambda: mock_user_details_response),
                 MagicMock(status_code=200, json=lambda: mock_memberships_response)
             ]
             
             result = AuthService.authenticate_google_token(mock_token)
             
             # Expected returned tuple: user_id, user_data, gsm_project_role, api_key
-            user_id, user_data, user_role, api_key = result
+            user_id, user_data, user_role  = result
             
             assert user_id == 123
             assert user_data == {'id': 123, 'firstname': 'Test', 'lastname': 'User'}
             assert user_role == 'Developer'
-            assert api_key == 'mock_api_key'
+
             
             mock_verify.assert_called_once_with(mock_token, ANY, ANY)
-            assert mock_get.call_count == 3
+            assert mock_get.call_count == 2
 
 
 def test_authenticate_google_token_missing_email():
@@ -131,17 +131,6 @@ def test_authenticate_google_token_user_not_found():
             result = AuthService.authenticate_google_token('some_token')
             assert result == (None, "User not found in Redmine")
 
-
-def test_authenticate_google_token_api_key_missing():
-    with patch('services.auth_service.id_token.verify_oauth2_token', return_value={'email': 'test@example.com'}):
-        with patch('services.auth_service.requests.get') as mock_get:
-            # First call returns user found
-            mock_get.side_effect = [
-                MagicMock(status_code=200, json=lambda: {'users': [{'id': 123}]}),
-                MagicMock(status_code=200, json=lambda: {'user': {}})  # no api_key here
-            ]
-            result = AuthService.authenticate_google_token('some_token')
-            assert result == (None, "API key not found for the user")
 
 
 def test_authenticate_google_token_role_not_found():
