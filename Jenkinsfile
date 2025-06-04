@@ -6,6 +6,7 @@ pipeline {
         DOCKER_REGISTRY = "docker.io"
         REGISTRY_CREDENTIALS = "dockerhub-creds"  // Set your Jenkins credentials ID for Docker Hub
         IMAGE_TAG = "latest"
+        USERNAME = "achinthamihiran"  // Corrected Docker Hub username
     }
 
     stages {
@@ -17,24 +18,30 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat "docker build -t %IMAGE_NAME% ."
+                script {
+                    bat "docker build -t ${IMAGE_NAME} ."
+                }
             }
         }
 
         stage('Stop Existing Container') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
-                    bat """
-                    docker stop %IMAGE_NAME%
-                    docker rm %IMAGE_NAME%
-                    """
+                    script {
+                        bat """
+                        docker stop ${IMAGE_NAME}
+                        docker rm ${IMAGE_NAME}
+                        """
+                    }
                 }
             }
         }
 
         stage('Run Docker Container') {
             steps {
-                bat "docker run -d -p 5000:5000 --name %IMAGE_NAME% %IMAGE_NAME%"
+                script {
+                    bat "docker run -d -p 5000:5000 --name ${IMAGE_NAME} ${IMAGE_NAME}"
+                }
             }
         }
 
@@ -44,8 +51,8 @@ pipeline {
                     // Login to Docker registry using Jenkins credentials
                     docker.withRegistry("https://${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
                         // Tag the image with your Docker Hub username
-                        def image = docker.image("%IMAGE_NAME%")
-                        image.tag("${DOCKER_REGISTRY}/achinthamihiran654/%IMAGE_NAME%:${IMAGE_TAG}")
+                        def image = docker.image("${IMAGE_NAME}")
+                        image.tag("${DOCKER_REGISTRY}/${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}")
 
                         // Push the tagged image to Docker Hub
                         image.push()
