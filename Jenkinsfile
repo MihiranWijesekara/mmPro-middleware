@@ -4,9 +4,9 @@ pipeline {
     environment {
         IMAGE_NAME = "mmpro-middleware"
         DOCKER_REGISTRY = "docker.io"
-        REGISTRY_CREDENTIALS = "dockerhub-creds"  // Set your Jenkins credentials ID for Docker Hub
+        REGISTRY_CREDENTIALS = "dockerhub-creds"
         IMAGE_TAG = "latest"
-        USERNAME = "achinthamihiran"  // Corrected Docker Hub username
+        USERNAME = "achinthamihiran"
     }
 
     stages {
@@ -50,10 +50,10 @@ pipeline {
                 script {
                     // Login to Docker registry using Jenkins credentials
                     docker.withRegistry("https://${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        // Tag the image with your Docker Hub username
+                        // Tag the image with the correct format
                         def image = docker.image("${IMAGE_NAME}")
-                        image.tag("${DOCKER_REGISTRY}/${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}")
-
+                        image.tag("${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}")
+                        
                         // Push the tagged image to Docker Hub
                         image.push()
                     }
