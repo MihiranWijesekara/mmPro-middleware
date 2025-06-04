@@ -3,13 +3,11 @@ pipeline {
 
     environment {
         IMAGE_NAME = "mmpro-middleware"
-        DOCKER_REGISTRY = "https://hub.docker.com/repositories/achinthamihiran"
-        REGISTRY_CREDENTIALS = "dockerhub-creds"
+        REGISTRY_CREDENTIALS = "dockerhub-creds"  // Make sure this credential ID exists in Jenkins
         IMAGE_TAG = "latest"
-        USERNAME = "achinthamihiran"
-        // Full image name including registry and username
-        FULL_IMAGE_NAME = "${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
         DOCKER_HUB_REPO = 'achinthamihiran/mmpro-middleware'
+        CONTAINER_PORT = 5000
+        HOST_PORT = 5000
     }
 
     stages {
@@ -22,7 +20,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${DOCKER_HUB_REPO}:latest")
+                    dockerImage = docker.build("${DOCKER_HUB_REPO}:${IMAGE_TAG}")
                 }
             }
         }
@@ -43,7 +41,7 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    bat "docker run -d -p 5000:5000 --name ${IMAGE_NAME} ${IMAGE_NAME}"
+                    bat "docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} --name ${IMAGE_NAME} ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
                 }
             }
         }
@@ -51,9 +49,8 @@ pipeline {
         stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', '${REGISTRY_CREDENTIALS}') {
-                        dockerImage.push('latest')
-                        echo "Docker image pushed to ${FULL_IMAGE_NAME}"
+                    docker.withRegistry('https://registry.hub.docker.com', "${REGISTRY_CREDENTIALS}") {
+                        dockerImage.push("${IMAGE_TAG}")
                     }
                 }
             }
