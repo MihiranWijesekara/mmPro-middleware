@@ -3,12 +3,13 @@ pipeline {
 
     environment {
         IMAGE_NAME = "mmpro-middleware"
-        DOCKER_REGISTRY = "docker.io"
+        DOCKER_REGISTRY = "https://hub.docker.com/repositories/achinthamihiran"
         REGISTRY_CREDENTIALS = "dockerhub-creds"
         IMAGE_TAG = "latest"
         USERNAME = "achinthamihiran"
         // Full image name including registry and username
         FULL_IMAGE_NAME = "${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+        DOCKER_HUB_REPO = 'achinthamihiran/mmpro-middleware'
     }
 
     stages {
@@ -21,7 +22,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    bat "docker build -t ${IMAGE_NAME} ."
+                    dockerImage = docker.build("${DOCKER_HUB_REPO}:latest")
                 }
             }
         }
@@ -50,12 +51,9 @@ pipeline {
         stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    // First tag the image properly
-                    bat "docker tag ${IMAGE_NAME} ${FULL_IMAGE_NAME}"
-                    
-                    // Then push using Docker Pipeline plugin
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        docker.image(FULL_IMAGE_NAME).push()
+                    docker.withRegistry('https://registry.hub.docker.com', '${REGISTRY_CREDENTIALS}') {
+                        dockerImage.push('latest')
+                        echo "Docker image pushed to ${FULL_IMAGE_NAME}"
                     }
                 }
             }
