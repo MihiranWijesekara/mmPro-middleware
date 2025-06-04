@@ -7,6 +7,8 @@ pipeline {
         REGISTRY_CREDENTIALS = "dockerhub-creds"
         IMAGE_TAG = "latest"
         USERNAME = "achinthamihiran"
+        // Full image name including registry and username
+        FULL_IMAGE_NAME = "${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
     }
 
     stages {
@@ -29,8 +31,8 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
                     script {
                         bat """
-                        docker stop ${IMAGE_NAME}
-                        docker rm ${IMAGE_NAME}
+                        docker stop ${IMAGE_NAME} || echo "Container not running"
+                        docker rm ${IMAGE_NAME} || echo "Container not found"
                         """
                     }
                 }
@@ -48,14 +50,12 @@ pipeline {
         stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    // Login to Docker registry using Jenkins credentials
+                    // First tag the image properly
+                    bat "docker tag ${IMAGE_NAME} ${FULL_IMAGE_NAME}"
+                    
+                    // Then push using Docker Pipeline plugin
                     docker.withRegistry("https://${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        // Tag the image with the correct format
-                        def image = docker.image("${IMAGE_NAME}")
-                        image.tag("${USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}")
-                        
-                        // Push the tagged image to Docker Hub
-                        image.push()
+                        docker.image(FULL_IMAGE_NAME).push()
                     }
                 }
             }
