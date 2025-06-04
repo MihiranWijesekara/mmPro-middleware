@@ -3,11 +3,12 @@ pipeline {
 
     environment {
         IMAGE_NAME = "mmpro-middleware"
-        DOCKER_REGISTRY = "local"
+        DOCKER_REGISTRY = "docker.io"  // Docker Hub, can change for other registries
+        REGISTRY_CREDENTIALS = "dockerhub-creds"  // Jenkins credentials for Docker Hub
+        IMAGE_TAG = "latest"  // You can dynamically set this if needed (e.g., with Git commit hash)
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/MihiranWijesekara/mmPro-middleware.git'
@@ -36,14 +37,30 @@ pipeline {
                 bat "docker run -d -p 5000:5000 --name %IMAGE_NAME% %IMAGE_NAME%"
             }
         }
+
+        stage('Push Docker Image to Registry') {
+            steps {
+                script {
+                    // Login to Docker registry using Jenkins credentials
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
+                        // Tag the image
+                        def image = docker.image("%IMAGE_NAME%")
+                        image.tag("${DOCKER_REGISTRY}/yourusername/%IMAGE_NAME%:${IMAGE_TAG}")
+
+                        // Push the tagged image to the registry
+                        image.push()
+                    }
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo '✅ Build & Deploy Successful!'
+            echo '✅ Build, Deploy & Push to Registry Successful!'
         }
         failure {
-            echo '❌ Build Failed!'
+            echo '❌ Build, Deploy or Push Failed!'
         }
     }
 }
