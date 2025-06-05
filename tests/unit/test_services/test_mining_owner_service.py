@@ -702,3 +702,245 @@ class TestCreateTPL:
         result, error = MLOwnerService.create_tpl({}, "token")
         assert result is None
         assert "Test exception" in error
+
+class TestMLDetail:
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_ml_detail_success(self, mock_get, mock_limit, mock_api_key):
+        # Setup mocks
+        mock_api_key.return_value = 'test_api_key'
+        mock_limit.return_value = 100
+        
+        # Mock first response (search issues)
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "issues": [
+                {
+                    "id": 123,
+                    "custom_fields": [
+                        {"id": 101, "value": "ML-001"}
+                    ]
+                }
+            ]
+        }
+        
+        # Mock detail response
+        mock_detail_response = MagicMock()
+        mock_detail_response.status_code = 200
+        mock_detail_response.json.return_value = {
+            "issue": {
+                "id": 123,
+                "subject": "Mining License",
+                "status": {"name": "Active"},
+                "author": {"name": "Admin"},
+                "assigned_to": {"name": "Owner"},
+                "start_date": "2023-01-01",
+                "due_date": "2023-12-31",
+                "created_on": "2023-01-01T00:00:00Z",
+                "updated_on": "2023-01-01T00:00:00Z",
+                "custom_fields": [
+                    {"name": "Royalty", "value": "1000"},
+                    {"name": "Exploration Licence No", "value": "EXP-001"},
+                    {"name": "Land Name(Licence Details)", "value": "Test Land"},
+                    {"name": "Land owner name", "value": "Test Owner"},
+                    {"name": "Name of village ", "value": "Test Village"},
+                    {"name": "Grama Niladhari Division", "value": "Test GN"},
+                    {"name": "Divisional Secretary Division", "value": "Test DS"},
+                    {"name": "Administrative District", "value": "Test District"},
+                    {"name": "Capacity", "value": "1000"},
+                    {"name": "Used", "value": "500"},
+                    {"name": "Remaining", "value": "500"},
+                    {"name": "Mobile Number", "value": "0712345678"},
+                    {"name": "Google location ", "value": "1.234,5.678"},
+                    {"name": "Reason For Hold", "value": "None"},
+                    {"name": "Economic Viability Report", "value": "Approved"},
+                    {"name": "Detailed Mine Restoration Plan", "value": "Submitted"},
+                    {"name": "Deed and Survey Plan", "value": "On file"},
+                    {"name": "Payment Receipt", "value": "Paid"},
+                    {"name": "License Boundary Survey", "value": "Completed"},
+                    {"name": "Mining License Number", "value": "ML-001"}
+                ]
+            }
+        }
+        
+        # Set up side effect for multiple requests
+        mock_get.side_effect = [mock_search_response, mock_detail_response]
+        
+        # Call the method
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        
+        # Assertions
+        assert error is None
+        assert result["id"] == 123
+        assert result["mining_license_number"] == "ML-001"
+        assert result["royalty"] == "1000"
+        assert result["remaining"] == "500"
+        
+        # Verify API calls
+        assert mock_get.call_count == 2
+        mock_get.assert_any_call(
+            "http://test.redmine.com/projects/mmpro-gsmb/issues.json?offset=0&limit=100",
+            headers={
+                "X-Redmine-API-Key": "test_api_key",
+                "Content-Type": "application/json"
+            }
+        )
+        mock_get.assert_any_call(
+            "http://test.redmine.com/issues/123.json",
+            headers={
+                "X-Redmine-API-Key": "test_api_key",
+                "Content-Type": "application/json"
+            }
+        )
+
+    @patch.dict('os.environ', {'REDMINE_URL': ''})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_ml_detail_missing_redmine_url(self, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "Redmine URL or API Key is missing" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_ml_detail_missing_api_key(self, mock_api_key):
+        mock_api_key.return_value = None
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "Redmine URL or API Key is missing" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_ml_detail_search_failure(self, mock_get, mock_limit, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        mock_limit.return_value = 100
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Server error"
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "Failed to fetch issues" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_ml_detail_detail_failure(self, mock_get, mock_limit, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        mock_limit.return_value = 100
+        
+        # First call (search) succeeds
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "issues": [
+                {
+                    "id": 123,
+                    "custom_fields": [
+                        {"id": 101, "value": "ML-001"}
+                    ]
+                }
+            ]
+        }
+        
+        # Second call (detail) fails
+        mock_detail_response = MagicMock()
+        mock_detail_response.status_code = 404
+        mock_detail_response.text = "Not found"
+        
+        mock_get.side_effect = [mock_search_response, mock_detail_response]
+        
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "Failed to fetch issue details" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_ml_detail_not_found(self, mock_get, mock_limit, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        mock_limit.return_value = 100
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"issues": []}
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "No mining license found" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_ml_detail_pagination(self, mock_get, mock_limit, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        mock_limit.return_value = 1  # Small limit to force pagination
+        
+        # First page - doesn't contain our license
+        mock_page1 = MagicMock()
+        mock_page1.status_code = 200
+        mock_page1.json.return_value = {
+            "issues": [
+                {
+                    "id": 1,
+                    "custom_fields": [
+                        {"id": 101, "value": "OTHER"}
+                    ]
+                }
+            ]
+        }
+        
+        # Second page - contains our license
+        mock_page2 = MagicMock()
+        mock_page2.status_code = 200
+        mock_page2.json.return_value = {
+            "issues": [
+                {
+                    "id": 2,
+                    "custom_fields": [
+                        {"id": 101, "value": "ML-001"}
+                    ]
+                }
+            ]
+        }
+        
+        # Detail response
+        mock_detail = MagicMock()
+        mock_detail.status_code = 200
+        mock_detail.json.return_value = {
+            "issue": {
+                "id": 2,
+                "custom_fields": [
+                    {"name": "Mining License Number", "value": "ML-001"}
+                ]
+            }
+        }
+        
+        mock_get.side_effect = [mock_page1, mock_page2, mock_detail]
+        
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert error is None
+        assert result["id"] == 2
+        assert mock_get.call_count == 3
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_ml_detail_exception_handling(self, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        mock_api_key.side_effect = Exception("Test exception")
+        
+        result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
+        assert result is None
+        assert "Server error: Test exception" in error
