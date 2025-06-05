@@ -6,7 +6,7 @@ from twilio.base.exceptions import TwilioException
 from utils.jwt_utils import JWTUtils
 import random
 from services.cache import cache
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC, timezone
 
 
 
@@ -73,7 +73,7 @@ class GeneralPublicService:
 
             tpl_issues = tpl_response.json().get("issues", [])
             lorry_number_lower = lorry_number.lower()
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
             # Check if any TPL license matches the given lorry number (cf_13)
             for issue in tpl_issues:
@@ -90,7 +90,7 @@ class GeneralPublicService:
                         continue  # Skip if no creation date
                 
                     try:
-                        created_on = datetime.strptime(created_on_str, "%Y-%m-%dT%H:%M:%SZ")
+                        created_on = datetime.strptime(created_on_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
                         estimated_hours = issue.get("estimated_hours", 0)
                     
                         # Calculate expiration time

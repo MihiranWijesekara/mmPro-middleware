@@ -16,7 +16,7 @@ def set_env(monkeypatch):
 def test_check_lorry_number_success_valid_license(mock_get, mock_get_api_key):
     mock_get_api_key.return_value = 'mock_api_key'
 
-    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+    current_time = datetime.now(timezone.utc)
     created_on = (current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     estimated_hours = 5
 
@@ -106,8 +106,8 @@ def test_check_lorry_number_no_valid_tpl_license(mock_get, mock_get_api_key):
         "issues": [
             {
                 "id": 102,
-                "created_on": (datetime.utcnow() - timedelta(hours=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "estimated_hours": 1,  # expired
+                "created_on": (datetime.now(timezone.utc) - timedelta(hours=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "estimated_hours": 1,  # expired license
                 "custom_fields": [{"id": 53, "value": "ABC123"}],
                 "assigned_to": {"name": "Officer B"},
             }
@@ -115,8 +115,11 @@ def test_check_lorry_number_no_valid_tpl_license(mock_get, mock_get_api_key):
     }
     mock_get.return_value = MagicMock(status_code=200, json=lambda: issues)
     result, error = PoliceOfficerService.check_lorry_number("ABC123", "mock_token")
-    assert result is None
-    assert "No valid (non-expired) TPL with this lorry number" in error
+
+    assert result is not None  # license info returned even if expired
+    assert result["IsValid"] is False
+    assert error is None
+
 
 
 @patch('services.police_officer_service.UserUtils.get_user_phone')
