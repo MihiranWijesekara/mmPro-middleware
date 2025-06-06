@@ -6,7 +6,9 @@ from twilio.base.exceptions import TwilioException
 from utils.jwt_utils import JWTUtils
 import random
 from services.cache import cache
-from datetime import datetime, timedelta, UTC, timezone
+# from datetime import datetime, timedelta, UTC, timezone
+from datetime import datetime, timedelta, timezone
+
 
 
 
@@ -73,7 +75,8 @@ class GeneralPublicService:
 
             tpl_issues = tpl_response.json().get("issues", [])
             lorry_number_lower = lorry_number.lower()
-            current_time = datetime.now(UTC)
+            current_time = datetime.now(timezone.utc)
+
 
             # Check if any TPL license matches the given lorry number (cf_13)
             for issue in tpl_issues:
