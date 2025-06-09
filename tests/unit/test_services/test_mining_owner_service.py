@@ -944,3 +944,115 @@ class TestMLDetail:
         result, error = MLOwnerService.ml_detail("ML-001", "valid_token")
         assert result is None
         assert "Server error: Test exception" in error
+
+class TestUserDetail:
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_detail_success(self, mock_get, mock_api_key):
+        # Setup mocks
+        mock_api_key.return_value = 'test_api_key'
+        
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "user": {
+                "id": 123,
+                "login": "testuser",
+                "firstname": "Test",
+                "lastname": "User",
+                "mail": "test@example.com",
+                "created_on": "2023-01-01T00:00:00Z",
+                "last_login_on": "2023-06-01T00:00:00Z"
+            }
+        }
+        mock_get.return_value = mock_response
+
+        # Call the method
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+
+        # Assertions
+        assert error is None
+        assert result["id"] == 123
+        assert result["login"] == "testuser"
+        assert result["firstname"] == "Test"
+        
+        # Verify API call
+        mock_get.assert_called_once_with(
+            "http://test.redmine.com/users/123.json",
+            headers={
+                "X-Redmine-API-Key": "test_api_key",
+                "Content-Type": "application/json"
+            }
+        )
+
+    @patch.dict('os.environ', {'REDMINE_URL': ''})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_user_detail_missing_redmine_url(self, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+        assert result is None
+        assert "Redmine URL or API Key is missing" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_user_detail_missing_api_key(self, mock_api_key):
+        mock_api_key.return_value = None
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+        assert result is None
+        assert "Redmine URL or API Key is missing" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_detail_api_failure(self, mock_get, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "User not found"
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+        assert result is None
+        assert "Failed to fetch issue: 404 - User not found" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_detail_invalid_response(self, mock_get, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}  # Missing user data
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+        assert result == {}
+        assert error is None
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_detail_partial_data(self, mock_get, mock_api_key):
+        mock_api_key.return_value = 'test_api_key'
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "user": {
+                "id": 123,
+                "login": "testuser"
+                # Missing other fields
+            }
+        }
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.user_detail(123, "valid_token")
+        assert error is None
+        assert result["id"] == 123
+        assert result["login"] == "testuser"
+        assert "firstname" not in result        
