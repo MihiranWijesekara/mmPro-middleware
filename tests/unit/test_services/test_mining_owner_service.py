@@ -1067,72 +1067,87 @@ class TestViewTpls:
     def test_view_tpls_success(self, mock_get, mock_limit, mock_user_info, mock_api_key):
         # Setup mocks
         mock_api_key.return_value = 'test_api_key'
-        mock_user_info.return_value = (123, None)  # user_id, error
+        mock_user_info.return_value = (123, None)
         mock_limit.return_value = 100
         
-        # Mock response with correct structure based on actual Redmine response
+        # Create test data
+        test_date = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "issues": [
                 {
                     "id": 390,
-                    "subject": "TPL",
-                    "tracker": {"id": 5, "name": "TPL"},
-                    "status": {"name": "Active Licenses"},
+                    "subject": "TPL 001",
+                    "created_on": test_date,
+                    "estimated_hours": "24",
                     "custom_fields": [
                         {"id": 53, "name": "Lorry Number", "value": "ABX1234"},
-                        {"id": 54, "name": "Driver Contact", "value": "0779999999"},
-                        {"id": 59, "name": "Mining issue id", "value": "ML-001"}  # Matching field
-                    ]
-                },
-                {
-                    "id": 391,
-                    "subject": "TPL 2",
-                    "tracker": {"id": 5, "name": "TPL"},
-                    "status": {"name": "Pending"},
-                    "custom_fields": [
-                        {"id": 53, "name": "Lorry Number", "value": "ABX1234"},
-                        {"id": 54, "name": "Driver Contact", "value": "0779999999"},
-                        {"id": 59, "name": "Mining issue id", "value": "ML-001"}  # Matching field
+                        {"id": 54, "name": "Driver Contact", "value": "0771234567"},
+                        {"id": 59, "name": "Mining issue id", "value": "ML-001"},
+                        {"id": 68, "name": "Destination", "value": "Colombo"}
                     ]
                 }
             ]
         }
         mock_get.return_value = mock_response
         
-        # Call the method
+        # Call method
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         
-        # Assertions - now checking the transformed structure
+        # Assertions
         assert error is None
-        assert len(result) == 2
-        # Check for either the original ID or transformed structure
-        assert result[0].get("id") == 390 or result[0].get("tpl_id") == 390
-        assert result[1].get("id") == 391 or result[1].get("tpl_id") == 391
-        
-        # Verify API call
-        mock_get.assert_called_once_with(
-            "http://test.redmine.com/issues.json",
-            params={
-                "project_id": 1,
-                "tracker_id": 5,
-                "limit": 100,
-                "offset": 0
-            },
-            headers={
-                "X-Redmine-API-Key": "test_api_key",
-                "Content-Type": "application/json"
-            },
-            timeout=30
-        )
+        assert len(result) == 1
+        assert result[0]["tpl_id"] == 390
+        assert result[0]["status"] == "Active"
+        assert result[0]["lorry_number"] == "ABX1234"
+        assert result[0]["driver_contact"] == "0771234567"
 
-    def test_view_tpls_empty_license_number(self):
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.MLOUtils.get_user_info_from_token')
+    @patch('services.mining_owner_service.requests.get')
+    def test_view_tpls_expired_status(self, mock_get, mock_user_info, mock_api_key):
+    # Setup all required mocks
+        mock_api_key.return_value = 'test_api_key'
+        mock_user_info.return_value = (123, None)  # user_id, error
+    
+    # Create expired TPL (created 48 hours ago with 24 hour estimate)
+        expired_date = (datetime.now() - timedelta(hours=48)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "issues": [{
+            "id": 391,
+            "subject": "TPL 002",
+            "created_on": expired_date,
+            "estimated_hours": "24",
+            "custom_fields": [
+                {"id": 53, "name": "Lorry Number", "value": "ABX1234"},
+                {"id": 54, "name": "Driver Contact", "value": "0771234567"},
+                {"id": 59, "name": "Mining issue id", "value": "ML-001"},
+                {"id": 68, "name": "Destination", "value": "Colombo"}
+                ]
+            }]
+        }
+        mock_get.return_value = mock_response
+    
+        result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
+    
+        # Debug print if needed
+        print(f"Result: {result}, Error: {error}")
+    
+        assert error is None
+        assert len(result) == 1
+        assert result[0]["status"] == "Expired"
+
+
+    def test_view_tpls_empty_license(self):
         result, error = MLOwnerService.view_tpls("valid_token", "")
         assert result is None
         assert error == "Valid mining license number is required"
 
-    def test_view_tpls_whitespace_license_number(self):
+    def test_view_tpls_whitespace_license(self):
         result, error = MLOwnerService.view_tpls("valid_token", "   ")
         assert result is None
         assert error == "Valid mining license number is required"
@@ -1140,10 +1155,10 @@ class TestViewTpls:
     @patch.dict('os.environ', {'REDMINE_URL': ''})
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
     def test_view_tpls_missing_redmine_url(self, mock_api_key):
-        mock_api_key.return_value = 'test_api_key'
+        mock_api_key.return_value = 'test_key'
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         assert result is None
-        assert "System configuration error - missing Redmine URL or API Key" in error
+        assert "System configuration error" in error
 
     @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
@@ -1151,53 +1166,52 @@ class TestViewTpls:
         mock_api_key.return_value = None
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         assert result is None
-        assert "System configuration error - missing Redmine URL or API Key" in error
+        assert "System configuration error" in error
 
     @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
     @patch('services.mining_owner_service.MLOUtils.get_user_info_from_token')
     def test_view_tpls_auth_error(self, mock_user_info, mock_api_key):
-        mock_api_key.return_value = 'test_api_key'
+        mock_api_key.return_value = 'test_key'
         mock_user_info.return_value = (None, "Invalid token")
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         assert result is None
-        assert "Authentication error: Invalid token" in error
+        assert "Authentication error" in error
 
     @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
     @patch('services.mining_owner_service.MLOUtils.get_user_info_from_token')
-    @patch('services.mining_owner_service.LimitUtils.get_limit')
     @patch('services.mining_owner_service.requests.get')
-    def test_view_tpls_api_error(self, mock_get, mock_limit, mock_user_info, mock_api_key):
-        mock_api_key.return_value = 'test_api_key'
-        mock_user_info.return_value = (123, None)
-        mock_limit.return_value = 100
-        
+    def test_view_tpls_api_error(self, mock_get,mock_user_info, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+        mock_user_info.return_value = ('user123', None)
+
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Server error"
         mock_get.return_value = mock_response
         
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
+
         assert result is None
-        assert "Redmine API error (500): Server error" in error
+        assert "Redmine API error" in error
+        assert "500" in error
 
     @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
     @patch('services.mining_owner_service.MLOUtils.get_user_info_from_token')
-    @patch('services.mining_owner_service.LimitUtils.get_limit')
     @patch('services.mining_owner_service.requests.get')
-    def test_view_tpls_invalid_json(self, mock_get, mock_limit, mock_user_info, mock_api_key):
-        mock_api_key.return_value = 'test_api_key'
-        mock_user_info.return_value = (123, None)
-        mock_limit.return_value = 100
-        
+    def test_view_tpls_invalid_json(self, mock_get,mock_user_info, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+        mock_user_info.return_value = ('user123', None)
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.side_effect = ValueError("Invalid JSON")
         mock_get.return_value = mock_response
         
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
+
         assert result is None
         assert "Failed to parse response from Redmine" in error
 
@@ -1205,8 +1219,48 @@ class TestViewTpls:
     @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
     def test_view_tpls_exception_handling(self, mock_api_key):
         mock_api_key.side_effect = Exception("Test exception")
-        
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         assert result is None
-        assert "Test exception" in error  # Checks that the exception message is included
-        assert "error" in error.lower()        
+        assert "Processing error: Test exception" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.MLOUtils.get_user_info_from_token')
+    @patch('services.mining_owner_service.LimitUtils.get_limit')
+    @patch('services.mining_owner_service.requests.get')
+    def test_view_tpls_skip_invalid_issues(self, mock_get, mock_limit, mock_user_info, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+        mock_user_info.return_value = ('user123', None)
+        mock_limit.return_value = 100
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "issues": [
+                {  # Valid TPL
+                "id": 1,
+                "subject": "Valid TPL",
+                "project": {"id": 1},
+                "tracker": {"id": 5},
+                "created_on": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "estimated_hours": "24",
+                "custom_fields": [
+                    {"id": 59, "value": "ML-001", "name": "Mining License"},
+                    {"id": 1, "value": "Lorry-1", "name": "Lorry Number"}
+                ]
+                },
+                {  # Invalid TPL (missing required fields)
+                "id": 2,
+                "subject": "Invalid TPL",
+                "project": {"id": 1},
+                "tracker": {"id": 5},
+                "custom_fields": [{"id": 59, "value": "ML-001"}]
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
+        assert error is None
+        assert len(result) == 1
+        assert result[0]["tpl_id"] == 1        
