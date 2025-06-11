@@ -1417,3 +1417,181 @@ class TestMLRequest():
             # Verify default values were used
             assert result["issue"]["subject"] == "Minimal Request"
             assert result["issue"]["mining_license_number"] == "LLL/100/123"
+
+
+class TestGetMiningLicenseRequests():
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    @patch('services.mining_owner_service.requests.get')
+    @patch('services.mining_owner_service.MLOwnerService.get_attachment_urls')
+    @patch('services.mining_owner_service.MLOwnerService.get_custom_field_value')
+    def test_successful_request(self, mock_custom_field, mock_attachments, mock_get, mock_decode, mock_api_key):
+        # Setup mocks
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123}
+        
+        # Mock main issues response
+        mock_issues_response = MagicMock()
+        mock_issues_response.status_code = 200
+        mock_issues_response.json.return_value = {
+            "issues": [{
+                "id": 456,
+                "subject": "Test Mining License",
+                "status": {"name": "Pending"},
+                "assigned_to": {"id": 123, "name": "Test User"},
+                "created_on": "2023-01-01T00:00:00Z",
+                "updated_on": "2023-01-02T00:00:00Z",
+                "custom_fields": []
+            }]
+        }
+        
+        # Mock user details response
+        mock_user_response = MagicMock()
+        mock_user_response.status_code = 200
+        mock_user_response.json.return_value = {
+            "user": {
+                "id": 123,
+                "firstname": "Test",
+                "lastname": "User",
+                "mail": "test@example.com",
+                "custom_fields": []
+            }
+        }
+        
+        # Configure mock side effects
+        mock_get.side_effect = [mock_issues_response, mock_user_response]
+        mock_attachments.return_value = {
+            "Detailed Mine Restoration Plan": "http://attachment1.url",
+            "Payment Receipt": "http://payment.url"
+        }
+        mock_custom_field.side_effect = lambda fields, name: f"Mock {name}"
+        
+        # Call method
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        
+        # Assertions
+        assert error is None
+        assert len(result) == 1
+        assert result[0]["id"] == 456
+        assert result[0]["subject"] == "Test Mining License"
+        assert result[0]["status"] == "Pending"
+        assert result[0]["assigned_to_details"]["email"] == "test@example.com"
+        assert "http://attachment1.url" in result[0]["detailed_mine_restoration_plan"]
+        assert "Mock Exploration Licence No" in result[0]["exploration_licence_no"]
+
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_invalid_token(self, mock_api_key):
+        mock_api_key.return_value = None
+        result, error = MLOwnerService.get_mining_license_requests("invalid_token")
+        assert result is None
+        assert "Invalid or missing API key" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': ''})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    def test_missing_redmine_url(self,mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123} 
+
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        
+        assert result is None
+        assert "REDMINE_URL' is not set" in error
+        assert "Environment variable 'REDMINE_URL' is not set" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    def test_failed_user_extraction(self, mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {}
+
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+
+        assert result is None
+        assert "user_id" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    @patch('services.mining_owner_service.requests.get')
+    def test_redmine_api_error(self, mock_get, mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123}
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        assert result is None
+        assert "Failed to fetch ML issues" in error
+        assert "500" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_assignment_filter(self, mock_get, mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123}
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "issues": [
+                {"id": 1, "assigned_to": {"id": 123}, "custom_fields": []},
+                {"id": 2, "assigned_to": {"id": 456}, "custom_fields": []}
+            ]
+        }
+        mock_get.return_value = mock_response
+        
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        assert error is None
+        assert len(result) == 1
+        assert result[0]["id"] == 1
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    @patch('services.mining_owner_service.requests.get')
+    def test_user_details_failure(self, mock_get, mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123}
+        
+        # Mock issues response
+        mock_issues_response = MagicMock()
+        mock_issues_response.status_code = 200
+        mock_issues_response.json.return_value = {
+            "issues": [{
+                "id": 789,
+                "assigned_to": {"id": 123, "name": "Test User"},
+                "custom_fields": []
+            }]
+        }
+        
+        # Mock failed user details response
+        mock_user_response = MagicMock()
+        mock_user_response.status_code = 404
+        
+        mock_get.side_effect = [mock_issues_response, mock_user_response]
+        
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        assert error is None
+        assert result[0]["assigned_to_details"] is None
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.JWTUtils.decode_jwt_and_get_user_id')
+    @patch('services.mining_owner_service.requests.get')
+    def test_exception_handling(self, mock_get, mock_decode, mock_api_key):
+        mock_api_key.return_value = 'valid_api_key'
+        mock_decode.return_value = {"user_id": 123}
+        mock_get.side_effect = Exception("Test exception")
+        
+        result, error = MLOwnerService.get_mining_license_requests("valid_token")
+        assert result is None
+        assert "Server error" in error            
