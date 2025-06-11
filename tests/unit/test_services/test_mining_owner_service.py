@@ -1263,4 +1263,157 @@ class TestViewTpls:
         result, error = MLOwnerService.view_tpls("valid_token", "ML-001")
         assert error is None
         assert len(result) == 1
-        assert result[0]["tpl_id"] == 1        
+        assert result[0]["tpl_id"] == 1      
+
+
+class TestMLRequest():
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.post')
+    @patch('services.mining_owner_service.requests.put')
+    def test_ml_request_success(self, mock_put, mock_post, mock_api_key):
+        # Setup mocks
+        mock_api_key.return_value = 'test_key'
+        
+        # Mock create issue response
+        mock_create_response = MagicMock()
+        mock_create_response.status_code = 201
+        mock_create_response.json.return_value = {"issue": {"id": 123}}
+        mock_post.return_value = mock_create_response
+        
+        # Mock update response
+        mock_update_response = MagicMock()
+        mock_update_response.status_code = 204
+        mock_put.return_value = mock_update_response
+        
+        # Test data
+        test_data = {
+            "subject": "Test ML Request",
+            "description": "Test description",
+            "project_id": 1,
+            "exploration_nb": "EXP-001",
+            "land_name": "Test Land",
+            "land_owner_name": "John Doe",
+            "village_name": "Test Village",
+            "grama_niladari": "GN Division",
+            "divisional_secretary_division": "DS Division",
+            "administrative_district": "Colombo",
+            "google_location": "6.9271,79.8612"
+        }
+        
+        # Call method
+        result, error = MLOwnerService.ml_request(test_data, "valid_token", "0771234567")
+        
+        # Assertions
+        assert error is None
+        assert result["issue"]["id"] == 123
+        assert result["issue"]["mining_license_number"] == "LLL/100/123"
+        mock_post.assert_called_once()
+        mock_put.assert_called_once()
+
+    @patch.dict('os.environ', {'REDMINE_URL': ''})
+    def test_ml_request_missing_redmine_url(self):
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Redmine URL is not configured" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_ml_request_missing_api_key(self, mock_api_key):
+        mock_api_key.return_value = None
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Invalid or missing API key" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.post')
+    def test_ml_request_create_failure(self, mock_post, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Bad request"
+        mock_post.return_value = mock_response
+        
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Failed to create issue" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.post')
+    @patch('services.mining_owner_service.requests.put')
+    def test_ml_request_update_failure(self, mock_put, mock_post, mock_api_key):
+        # Setup create success
+        mock_api_key.return_value = 'test_key'
+        mock_create_response = MagicMock()
+        mock_create_response.status_code = 201
+        mock_create_response.json.return_value = {"issue": {"id": 123}}
+        mock_post.return_value = mock_create_response
+        
+        # Setup update failure
+        mock_update_response = MagicMock()
+        mock_update_response.status_code = 400
+        mock_update_response.text = "Update failed"
+        mock_put.return_value = mock_update_response
+        
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Failed to update Mining License Number" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.post')
+    def test_ml_request_network_error(self, mock_post, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+        mock_post.side_effect = requests.exceptions.RequestException("Network error")
+        
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Request failed" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    def test_ml_request_unexpected_error(self, mock_api_key):
+        mock_api_key.side_effect = Exception("Unexpected error")
+        result, error = MLOwnerService.ml_request({}, "token", "0771234567")
+        assert result is None
+        assert "Unexpected error" in error
+
+    @patch.dict('os.environ', {'REDMINE_URL': 'http://test.redmine.com'})
+    @patch('services.mining_owner_service.JWTUtils.get_api_key_from_token')
+    @patch('services.mining_owner_service.requests.post')
+    def test_ml_request_missing_required_fields(self, mock_post, mock_api_key):
+        mock_api_key.return_value = 'test_key'
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+        "issue": {
+            "id": 123,
+            "subject": "Minimal Request",
+            # Include other fields that might be expected
+            "project": {"id": 1, "name": "Test Project"},
+            "status": {"id": 8, "name": "New"},
+            "mining_license_number": "LLL/100/123"  # This is added by our method
+            }
+        }
+        mock_post.return_value = mock_response
+        
+        # Test with minimal required data
+        minimal_data = {
+            "subject": "Minimal Request"
+        }
+        
+        # Mock the update request
+        with patch('services.mining_owner_service.requests.put') as mock_put:
+            mock_put.return_value.status_code = 204
+            
+            result, error = MLOwnerService.ml_request(minimal_data, "token", "0771234567")
+            
+            assert error is None
+            assert result["issue"]["id"] == 123
+            # Verify default values were used
+            assert result["issue"]["subject"] == "Minimal Request"
+            assert result["issue"]["mining_license_number"] == "LLL/100/123"
