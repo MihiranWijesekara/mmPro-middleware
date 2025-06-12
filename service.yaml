@@ -1,14 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: middleware-service
+  name: mmpro-middleware-service
 spec:
   selector:
-    app: middleware
+    app: mmpro-middleware
   ports:
     - protocol: TCP
-      port: 5000 # External port
-      targetPort: 5000 # Container port
-      nodePort: 30000
-
-  type: NodePort
+      port: 80
+      targetPort: 5000  # Replace with your container's port
+  type: LoadBalancer  # Change to NodePort for local setup

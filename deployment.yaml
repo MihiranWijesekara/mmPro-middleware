@@ -1,32 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: middleware-deployment
+  name: mmpro-middleware
+  labels:
+    app: mmpro-middleware
 spec:
-  replicas: 1
+  replicas: 1  # Adjust the number of replicas as needed
   selector:
     matchLabels:
-      app: middleware
+      app: mmpro-middleware
   template:
     metadata:
       labels:
-        app: middleware
+        app: mmpro-middleware
     spec:
-      securityContext:
-        fsGroup: 1000 # Ensures writable volumes
       containers:
-        - name: middleware
-          image: middleware:latest # Using your local image
-          imagePullPolicy: Never
+        - name: mmpro-middleware
+          image: <achinthamihiran>/mmpro-middleware:latest  # Replace with your image
           ports:
-            - containerPort: 5000
-          volumeMounts:
-            - name: otp-cache
-              mountPath: /app/otp_cache
-            - name: logs
-              mountPath: /app/logs
-      volumes:
-        - name: otp-cache
-          emptyDir: {}
-        - name: logs
-          emptyDir: {}
+            - containerPort: 5000  # Replace with the port your app uses
