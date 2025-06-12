@@ -67,5 +67,3 @@ pipeline {
         }
     }
 }
-// Update jenkinsfile to use the correct Docker commands for Windows
-// and ensure that the Docker daemon is running on the Jenkins agent.
