@@ -19,3 +19,6 @@ EXPOSE 5000
 
 # Command to run the application
 CMD ["python", "app.py"]
+ 
+# Note: Ensure that the requirements.txt file is present in the same directory as this Dockerfile.
+# This file should contain all the necessary Python packages required for your application.
