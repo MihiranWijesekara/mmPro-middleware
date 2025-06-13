@@ -68,3 +68,5 @@ pipeline {
     }
 }
 
+// This Jenkinsfile defines a pipeline for building, deploying, and pushing a Docker image to Docker Hub.
+// It includes stages for checking out code, building the Docker image, stopping any existing container,
