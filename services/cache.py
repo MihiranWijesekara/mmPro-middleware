@@ -1,18 +1,18 @@
-from diskcache import Cache
 import os
+from diskcache import Cache
 
-cache_dir = os.getenv('DISKCACHE_DIR', '/app/otp_cache')
+# Use the same env variable name set in Jenkins
+cache_dir = os.getenv("CACHE_DIR", "/tmp/otp_cache")
 
 try:
     os.makedirs(cache_dir, exist_ok=True)
-    # Try to set permissions, but don't fail if we can't
+
     try:
         os.chmod(cache_dir, 0o755)
     except PermissionError:
-        pass  # Continue with default permissions
-        
+        pass
+
     cache = Cache(cache_dir)
 except Exception as e:
-    print(f"Error initializing cache: {e}")
-    # Fallback to temporary directory if needed
-    cache = Cache('/tmp/otp_cache')
+    print(f"Error initializing cache at {cache_dir}: {e}")
+    cache = Cache("/tmp/otp_cache")
