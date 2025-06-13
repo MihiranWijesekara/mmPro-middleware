@@ -16,3 +16,4 @@ except Exception as e:
     print(f"Error initializing cache: {e}")
     # Fallback to temporary directory if needed
     cache = Cache('/tmp/otp_cache')
+    

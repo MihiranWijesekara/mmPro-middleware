@@ -1,14 +1,15 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from services.general_public_service import GeneralPublicService
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
 
 
 # is_lorry_number_valid
 
 
 def test_is_lorry_number_valid_success():
-    future_time = (datetime.now(UTC) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    future_time = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
     mock_issues = [{
         "id": 1,
         "created_on": future_time,
@@ -26,7 +27,7 @@ def test_is_lorry_number_valid_success():
         assert error is None
 
 def test_is_lorry_number_valid_expired():
-    past_time = (datetime.now(UTC) - timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    past_time = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
     mock_issues = [{
         "id": 1,
         "created_on": past_time,
