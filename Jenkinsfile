@@ -84,3 +84,5 @@ pipeline {
         }
     }
 }
+// This Jenkinsfile defines a CI/CD pipeline for the mmPro middleware project.
+// It includes stages for checking out code, installing dependencies, running tests,    
