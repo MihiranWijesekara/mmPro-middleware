@@ -18,3 +18,5 @@ except Exception as e:
     fallback_dir = '/tmp/otp_cache'
     os.makedirs(fallback_dir, exist_ok=True)
     cache = Cache(fallback_dir)
+
+# Ensure the cache is writable
