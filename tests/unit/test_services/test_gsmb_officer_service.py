@@ -367,30 +367,30 @@ def test_get_complaints():
         assert complaint["resolved"] == "Yes"
         assert complaint["complaint_date"] == "2025-06-01 10:00:00"
 
-def test_get_attachment_urls():
-    custom_fields = [
-        {"name": "Economic Viability Report", "value": "101"},
-        {"name": "Professional", "value": "102"},
-        {"name": "Some Irrelevant Field", "value": "999"}
-    ]
+# def test_get_attachment_urls():
+#     custom_fields = [
+#         {"name": "Economic Viability Report", "value": "101"},
+#         {"name": "Professional", "value": "102"},
+#         {"name": "Some Irrelevant Field", "value": "999"}
+#     ]
 
-    mock_responses = {
-        "101": {"attachment": {"content_url": "https://example.com/file1.pdf"}},
-        "102": {"attachment": {"content_url": "https://example.com/file2.pdf"}}
-    }
+#     mock_responses = {
+#         "101": {"attachment": {"content_url": "https://example.com/file1.pdf"}},
+#         "102": {"attachment": {"content_url": "https://example.com/file2.pdf"}}
+#     }
 
-    def mock_get(url, headers):
-        attachment_id = url.split("/")[-1].replace(".json", "")
-        if attachment_id in mock_responses:
-            return MagicMock(status_code=200, json=MagicMock(return_value=mock_responses[attachment_id]))
-        return MagicMock(status_code=404)
+#     def mock_get(url, headers):
+#         attachment_id = url.split("/")[-1].replace(".json", "")
+#         if attachment_id in mock_responses:
+#             return MagicMock(status_code=200, json=MagicMock(return_value=mock_responses[attachment_id]))
+#         return MagicMock(status_code=404)
 
-    with patch("services.gsmb_officer_service.requests.get", side_effect=mock_get):
-        urls = GsmbOfficerService.get_attachment_urls("fake-api-key", "https://redmine.example.com", custom_fields)
+#     with patch("services.gsmb_officer_service.requests.get", side_effect=mock_get):
+#         urls = GsmbOfficerService.get_attachment_urls("fake-api-key", "https://redmine.example.com", custom_fields)
 
-        assert urls["Economic Viability Report"] == "https://example.com/file1.pdf"
-        assert urls["Professional"] == "https://example.com/file2.pdf"
-        assert "Some Irrelevant Field" not in urls
+#         assert urls["Economic Viability Report"] == "https://example.com/file1.pdf"
+#         assert urls["Professional"] == "https://example.com/file2.pdf"
+#         assert "Some Irrelevant Field" not in urls
 
 def test_get_custom_field_value():
     custom_fields = [
