@@ -7,7 +7,7 @@ pipeline {
         IMAGE_TAG = "latest"
         DOCKER_HUB_REPO = 'achinthamihiran/mmpro-middleware'
         CONTAINER_PORT = 5000
-        HOST_PORT = 5000
+        HOST_PORT = 5050
         CACHE_DIR = "${WORKSPACE}/.cache"  // Diskcache writable directory
     }
 
